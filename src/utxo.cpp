@@ -1,25 +1,18 @@
 #include "utxo.h"
-#include <algorithm>
 
-UTXOSet& UTXOSet::getInstance() {
-    static UTXOSet instance;
-    return instance;
+void UTXOSet::addUTXO(const TxOutput &output, const std::string &txHash, int index) {
+    UTXO utxo{txHash, index, output.value, output.address};
+    utxos[txHash + ":" + std::to_string(index)] = utxo;
 }
 
-void UTXOSet::addUTXO(const UTXO& utxo) {
-    utxos.push_back(utxo);
+void UTXOSet::spendUTXO(const std::string &txHash, int index) {
+    utxos.erase(txHash + ":" + std::to_string(index));
 }
 
-void UTXOSet::removeUTXO(const std::string& txid, uint32_t index) {
-    utxos.erase(std::remove_if(utxos.begin(), utxos.end(),
-        [&](const UTXO& u){ return u.txid == txid && u.index == index; }),
-        utxos.end());
-}
-
-std::vector<UTXO> UTXOSet::getUTXOs(const std::string& address) {
-    std::vector<UTXO> results;
-    for (auto &u : utxos) {
-        if (u.owner == address) results.push_back(u);
+uint64_t UTXOSet::getBalance(const std::string &address) {
+    uint64_t sum = 0;
+    for(auto &pair : utxos) {
+        if(pair.second.address == address) sum += pair.second.value;
     }
-    return results;
+    return sum;
 }
