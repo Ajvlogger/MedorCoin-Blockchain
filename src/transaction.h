@@ -1,31 +1,24 @@
-#ifndef TRANSACTION_H
-#define TRANSACTION_H
-
+#pragma once
 #include <string>
 #include <vector>
 #include <cstdint>
 
 struct TxInput {
-    std::string prevTxHash;
-    uint32_t outputIndex;
-    std::string signature; // Simplified signature
+    std::string prevTxHash; // Hash of previous transaction
+    int outputIndex;        // Which output of the prevTx
+    std::string signature;  // Signed by sender
 };
 
 struct TxOutput {
-    uint64_t value;        // Amount in smallest unit (like satoshi)
-    std::string recipient; // Wallet address
+    uint64_t value;         // Amount in MEDOR
+    std::string address;    // Recipient
 };
 
 class Transaction {
 public:
-    std::string txid;
+    std::string txHash;
     std::vector<TxInput> inputs;
     std::vector<TxOutput> outputs;
 
-    Transaction() = default;
-    Transaction(const std::vector<TxInput>& in, const std::vector<TxOutput>& out);
-
-    std::string computeTxID();
+    void calculateHash(); // SHA256 hash of inputs + outputs
 };
-
-#endif
