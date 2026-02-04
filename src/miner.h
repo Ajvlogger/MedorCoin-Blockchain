@@ -1,17 +1,7 @@
-#ifndef MINER_H
-#define MINER_H
-
-#include "blockchain.h"
-#include "mempool.h"
-#include "merkle.h"
+#pragma once
+#include <string>
 
 class Miner {
 public:
-    Blockchain& chain;
-
-    Miner(Blockchain& bc);
-
-    void minePendingTransactions();
+    void mineMedor(class Blockchain &chain, const std::string &minerAddress);
 };
-
-#endif
