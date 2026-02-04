@@ -1,6 +1,7 @@
 #pragma once
 #include <map>
 #include <string>
+#include <cstdint>
 #include "transaction.h"
 
 struct UTXO {
@@ -12,9 +13,14 @@ struct UTXO {
 
 class UTXOSet {
 public:
-    std::map<std::string, UTXO> utxos; // key = txHash:index
+    std::map<std::string, UTXO> utxos;
 
-    void addUTXO(const TxOutput &output, const std::string &txHash, int index);
-    void spendUTXO(const std::string &txHash, int index);
-    uint64_t getBalance(const std::string &address);
+    void addUTXO(const TxOutput& output,
+                 const std::string& txHash,
+                 int index);
+
+    void spendUTXO(const std::string& txHash,
+                   int index);
+
+    uint64_t getBalance(const std::string& address) const;
 };
