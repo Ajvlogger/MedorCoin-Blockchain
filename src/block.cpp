@@ -2,6 +2,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <ctime> // Include the ctime header for the time function
 #include "transaction.h"
 
 class Block {
