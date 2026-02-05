@@ -1,17 +1,14 @@
 #pragma once
-#include "net/peer_manager.h"
-#include <vector>
+
+#ifndef NET_MANAGER_H
+#define NET_MANAGER_H
+
 #include <string>
+#include <vector>
 
-class NetworkManager {
-public:
-    NetworkManager(const std::string &listenAddr);
+// forward declaration – tells compiler the type exists
+class PeerManager;
 
-    bool start();
-    bool connectBootstrap(const std::vector<std::string> &bootstrap);
-    void broadcastBlock(const std::string &blockHex);
-    void broadcastTx(const std::string &txHex);
+class NetworkManager { … };
 
-private:
-    PeerManager peerMgr;
-};
+#endif // NET_MANAGER_H
