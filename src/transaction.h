@@ -1,32 +1,30 @@
 #pragma once
+
 #include <string>
 #include <vector>
 #include <cstdint>
 
+// A transaction input references a previous UTXO and includes a signature
 struct TxInput {
-    std::string prevTxHash;
-    int outputIndex;
-    std::string signature; // wallet signature
+    std::string prevTxHash;   // The hash (ID) of the transaction being spent
+    uint32_t outputIndex;     // Index of the specific output in that TX
+    std::string signature;    // Signature unlocking that output
 };
 
+// A transaction output defines a new UTXO — value and destination address
 struct TxOutput {
-    uint64_t value;
-    std::string address;
+    uint64_t value;           // Amount in MedorCoin units
+    std::string address;      // Bitcoin‑style Base58Check address
 };
 
 class Transaction {
 public:
-    std::string txHash;
-    std::vector<TxInput> inputs;
-    std::vector<TxOutput> outputs;
+    uint32_t version = 1;                  // Transaction version (default 1)
+    std::vector<TxInput> inputs;           // Input list
+    std::vector<TxOutput> outputs;         // Output list
+    uint32_t lockTime = 0;                 // Lock time (default 0)
+    std::string txHash;                    // Double SHA‑256 TX identifier
 
-    void calculateHash() {
-        std::string concat;
-        for (auto& out : outputs)
-            concat += out.address + std::to_string(out.value);
-        for (auto& in : inputs)
-            concat += in.prevTxHash + std::to_string(in.outputIndex) + in.signature;
-        // Simple SHA256 placeholder
-        txHash = "tx" + std::to_string(rand()); 
-    }
+    // Computes the transaction ID (Bitcoin‑style serialization + double SHA‑256)
+    void calculateHash();
 };
