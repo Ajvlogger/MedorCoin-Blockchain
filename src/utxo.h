@@ -1,26 +1,19 @@
 #pragma once
+#include "transaction.h"
 #include <map>
 #include <string>
-#include <cstdint>
-#include "transaction.h"
-
-struct UTXO {
-    std::string txHash;
-    int index;
-    uint64_t value;
-    std::string address;
-};
+#include <tuple>
 
 class UTXOSet {
 public:
-    std::map<std::string, UTXO> utxos;
+    // key = txHash:index, value = TxOutput
+    std::map<std::string, TxOutput> utxos;
 
-    void addUTXO(const TxOutput& output,
-                 const std::string& txHash,
-                 int index);
+    void addUTXO(const TxOutput& output, const std::string& txHash, int index) {
+        utxos[txHash + ":" + std::to_string(index)] = output;
+    }
 
-    void spendUTXO(const std::string& txHash,
-                   int index);
-
-    uint64_t getBalance(const std::string& address) const;
+    void spendUTXO(const std::string& txHash, int index) {
+        utxos.erase(txHash + ":" + std::to_string(index));
+    }
 };
