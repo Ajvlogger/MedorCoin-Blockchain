@@ -1,29 +1,34 @@
-#pragma once  // Prevents multiple inclusion automatically
+#pragma once
 
-// or alternatively, if you prefer classic include guards
-/*
 #ifndef BLOCKDB_H
 #define BLOCKDB_H
-*/
 
 #include <string>
-#include <vector>
-// include other headers you actually need here
-//#include "otherheader.h"   // only include other dependencies, NOT itself
+#include "block.h" // Make sure this defines your Block class with serialize()/deserialize() and hash
 
-// your class or struct definitions
 class BlockDB {
 public:
     BlockDB();
     ~BlockDB();
 
-    void addBlock(const std::string& data);
-    std::string getBlock(int index);
+    // Open or create the LevelDB database at the given path
+    bool open(const std::string& path);
+
+    // Close the database
+    void close();
+
+    // Write a block to the database
+    bool writeBlock(const Block& block);
+
+    // Read a block from the database
+    bool readBlock(const std::string& hash, Block& blockOut);
+
+    // Check if a block exists
+    bool hasBlock(const std::string& hash);
 
 private:
-    std::vector<std::string> blocks;
+    // Pointer to LevelDB database
+    class leveldb::DB* db;
 };
 
-/*
 #endif // BLOCKDB_H
-*/
