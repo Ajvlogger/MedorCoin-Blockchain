@@ -4,7 +4,7 @@
 #include <vector>
 #include <ctime>
 
-struct Transaction; // forward declaration if needed
+struct Transaction;
 
 class Block {
 public:
@@ -12,7 +12,7 @@ public:
     std::string data;
     unsigned int difficulty;
     std::string minerAddress;
-    time_t timestamp;       // correct C++ type from <ctime>
+    time_t timestamp;
     unsigned long nonce;
     unsigned long reward;
     std::string hash;
