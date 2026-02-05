@@ -1,20 +1,27 @@
+#pragma once
+
 #ifndef MEMPOOL_H
 #define MEMPOOL_H
 
-#include <vector>
 #include "transaction.h"
+#include <unordered_map>
+#include <vector>
+#include <string>
+#include <mutex>
 
 class Mempool {
 public:
-    static Mempool& getInstance();
+    Mempool() = default;
+    ~Mempool() = default;
 
-    void addTransaction(const Transaction& tx);
+    bool addTransaction(const Transaction &tx);
+    void removeTransaction(const std::string &txHash);
     std::vector<Transaction> getTransactions();
-    void clear();
+    bool hasTransaction(const std::string &txHash);
 
 private:
-    std::vector<Transaction> transactions;
-    Mempool() = default;
+    std::unordered_map<std::string, Transaction> txMap;
+    std::mutex mtx;
 };
 
-#endif
+#endif // MEMPOOL_H
