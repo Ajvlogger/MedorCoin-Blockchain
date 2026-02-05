@@ -7,13 +7,13 @@ void Network::connectToPeer(const std::string& address) {
 }
 
 void Network::broadcastTransaction(const Transaction& tx) {
-    for (auto &peer : peers) {
-        std::cout << "Sending transaction " << tx.txid << " to " << peer << std::endl;
+    for (const auto &peer : peers) {
+        std::cout << "Sending transaction " << tx.txHash << " to " << peer << std::endl;
     }
 }
 
 void Network::broadcastBlock(const Block& block) {
-    for (auto &peer : peers) {
+    for (const auto &peer : peers) {
         std::cout << "Broadcasting block " << block.hash << " to " << peer << std::endl;
     }
 }
