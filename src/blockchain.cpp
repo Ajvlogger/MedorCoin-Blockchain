@@ -3,6 +3,7 @@
 #include "transaction.h"
 #include "utxo.h"
 #include "consensus.h"
+#include "db/blockdb.h"  // LevelDB storage
 #include <ctime>
 #include <cstdint>
 #include <vector>
@@ -12,12 +13,37 @@
 // -------------------------------
 // Constructor
 // -------------------------------
-Blockchain::Blockchain(const std::string& ownerAddr) {
+Blockchain::Blockchain(const std::string& ownerAddr)
+    : blockDB() // Initialize the LevelDB object
+{
     ownerAddress = ownerAddr;
     medor = 0x1e00ffff;       // Initial difficulty
     totalSupply = 0;
     maxSupply = 50000000;     // Max supply of MedorCoin
     powEngine = ProofOfWork(4); // Default difficulty 4 leading zeros
+
+    // Open LevelDB database for storing blocks
+    if (!blockDB.open("data/medorcoin_blocks")) {
+        std::cerr << "Error: Could not open LevelDB storage" << std::endl;
+    }
+
+    // Load blocks from LevelDB into memory
+    leveldb::Iterator* it = blockDB.db->NewIterator(leveldb::ReadOptions());
+    for (it->SeekToFirst(); it->Valid(); it->Next()) {
+        Block b;
+        const std::string hashKey = it->key().ToString();
+        if (blockDB.readBlock(hashKey, b)) {
+            chain.push_back(b);
+        }
+    }
+    delete it;
+
+    // If the chain is empty (first run), create the genesis block
+    if (chain.empty()) {
+        std::cout << "No blocks found in DB — creating genesis block" << std::endl;
+        std::vector<Transaction> noTxs;
+        addBlock(ownerAddress, noTxs);
+    }
 }
 
 // -------------------------------
@@ -28,7 +54,7 @@ uint64_t Blockchain::calculateReward() {
     time_t genesisTime = chain.empty() ? now : chain.front().timestamp;
     double months = difftime(now, genesisTime) / (60 * 60 * 24 * 30.0);
 
-    // First 2 months: 0.02 USD/block (simulate)
+    // First 2 months: 0.02 USD/block (reward 55)
     return (months <= 2.0) ? 55 : 30;
 }
 
@@ -43,7 +69,8 @@ void Blockchain::mineBlock(Block& block) {
 // Add a block to the blockchain
 // -------------------------------
 void Blockchain::addBlock(const std::string& minerAddr,
-                          std::vector<Transaction>& transactions) {
+                          std::vector<Transaction>& transactions) 
+{
     // 1. Calculate block reward
     uint64_t reward = calculateReward();
     if (totalSupply + reward > maxSupply)
@@ -63,10 +90,10 @@ void Blockchain::addBlock(const std::string& minerAddr,
     coinbaseTx.outputs.push_back(ownerOut);
     coinbaseTx.calculateHash();
 
-    // 3. Insert coinbase transaction at start
+    // Insert coinbase at start
     transactions.insert(transactions.begin(), coinbaseTx);
 
-    // 4. Create new block
+    // 3. Create new block
     Block newBlock;
     if (!chain.empty())
         newBlock = Block(chain.back().hash, "MedorCoin Block", medor, minerAddr);
@@ -77,17 +104,22 @@ void Blockchain::addBlock(const std::string& minerAddr,
     newBlock.reward = reward;
     newBlock.transactions = transactions;
 
-    // 5. Mine the block using Proof-of-Work
+    // 4. Mine the block
     mineBlock(newBlock);
 
-    // 6. Validate PoW before adding
+    // 5. Validate PoW
     if (!powEngine.validateBlock(newBlock)) {
         std::cerr << "Error: Block PoW invalid!" << std::endl;
         return;
     }
 
-    // 7. Add block to chain
+    // 6. Add to in‑memory chain
     chain.push_back(newBlock);
+
+    // 7. Persist to LevelDB
+    if (!blockDB.writeBlock(newBlock)) {
+        std::cerr << "Warning: Failed to write block to DB!" << std::endl;
+    }
 
     // 8. Update UTXO set
     for (auto& tx : newBlock.transactions) {
@@ -101,9 +133,29 @@ void Blockchain::addBlock(const std::string& minerAddr,
     // 9. Update total supply
     totalSupply += reward;
 
-    std::cout << "Block added! Hash: " << newBlock.hash
+    std::cout << "Block added. Hash: " << newBlock.hash
               << " | Nonce: " << newBlock.nonce
               << " | Reward: " << reward << std::endl;
+}
+
+// -------------------------------
+// Chain validation
+// -------------------------------
+bool Blockchain::validateBlock(const Block& block, const Block& previousBlock) {
+    if (block.previousHash != previousBlock.hash) return false;
+    if (block.timestamp <= previousBlock.timestamp) return false;
+
+    for (auto& tx : block.transactions) {
+        if (tx.txHash.empty()) return false;
+    }
+    return true;
+}
+
+bool Blockchain::validateChain() {
+    for (size_t i = 1; i < chain.size(); ++i)
+        if (!validateBlock(chain[i], chain[i - 1]))
+            return false;
+    return true;
 }
 
 // -------------------------------
@@ -118,7 +170,7 @@ void Blockchain::printChain() const {
                   << " | Prev: " << b.previousHash
                   << " | Time: " << b.timestamp
                   << " | Nonce: " << b.nonce
-                  << " | Tx Count: " << b.transactions.size()
+                  << " | TX Count: " << b.transactions.size()
                   << std::endl;
     }
 }
