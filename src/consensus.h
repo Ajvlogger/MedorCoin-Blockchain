@@ -1,13 +1,12 @@
 #ifndef CONSENSUS_H
 #define CONSENSUS_H
 
-#include "blockchain.h"
-#include "block.h"
+#include <cstdint> // This ensures that uint32_t and other fixed-width integers are defined
 
 class Consensus {
 public:
-    static bool validateBlock(const Block& block, const Block& previousBlock);
-    static bool validateChain(const Blockchain& chain);
+    bool validateBlock(const Block& block, const Block& previousBlock);
+    bool validateChain(const Blockchain& chain);
 };
 
-#endif
+#endif // CONSENSUS_H
