@@ -1,10 +1,9 @@
-#ifndef NETWORK_H
-#define NETWORK_H
+#pragma once
 
-#include <vector>
 #include <string>
+#include <vector>
 #include "transaction.h"
-#include "blockchain.h"
+#include "block.h"
 
 class Network {
 public:
@@ -14,5 +13,3 @@ public:
     void broadcastTransaction(const Transaction& tx);
     void broadcastBlock(const Block& block);
 };
-
-#endif
