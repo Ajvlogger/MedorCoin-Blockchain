@@ -1,28 +1,45 @@
 #pragma once
 #include <vector>
-#include <mutex>
 #include <string>
-#include <unordered_map>
+#include <cstdint>
+#include <mutex>
+#include "block.h"
 #include "transaction.h"
+#include "utxo.h"
 
-// Thread-safe mempool for transaction propagation
-class Mempool {
+class Blockchain {
 public:
-    Mempool() = default;
+    Blockchain(const std::string& ownerAddr);
 
-    // Add transaction to mempool
-    bool addTransaction(const Transaction& tx);
+    // Add mined block
+    void addBlock(const std::string& minerAddress, std::vector<Transaction>& transactions);
 
-    // Remove transaction after mining
-    void removeTransaction(const std::string& txHash);
+    // Validate a single block
+    bool validateBlock(const Block& block, const Block& previousBlock);
 
-    // Fetch all transactions ready to be mined
-    std::vector<Transaction> getTransactions();
+    // Validate entire chain
+    bool validateChain();
 
-    // Check if a transaction exists
-    bool hasTransaction(const std::string& txHash);
+    // Fetch last block
+    Block getLastBlock();
+
+    // Print chain for debug
+    void printChain();
+
+    // Access UTXO set
+    UTXOSet utxoSet;
 
 private:
-    std::unordered_map<std::string, Transaction> txMap;
-    std::mutex mtx; // thread-safe access
+    std::vector<Block> chain;
+    std::string ownerAddress;
+    uint64_t medor;
+    uint64_t totalSupply;
+    uint64_t maxSupply;
+    std::mutex mtx;
+
+    // Mining reward
+    uint64_t calculateReward();
+
+    // Lightweight PoW
+    void mineBlock(Block& block);
 };
