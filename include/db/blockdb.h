@@ -1,37 +1,26 @@
-#pragma once
+#include "db/blockdb.h"
+...
 
-#include <string>
-#include <leveldb/db.h>
-#include "block.h"
+Blockchain::Blockchain(const std::string& ownerAddr)
+    : blockDB()
+{
+    ownerAddress = ownerAddr;
+    medor = 0x1e00ffff;
+    totalSupply = 0;
+    maxSupply = 50000000;
 
-/*
-  BlockDB is the persistent database
-  that stores blocks on disk using LevelDB.
-  Each block is stored by its hash.
-*/
-class BlockDB {
-private:
-    leveldb::DB* db;  // pointer to LevelDB instance
+    // open LevelDB
+    if (!blockDB.open("data/medorcoin_blocks")) {
+        std::cerr << "Error opening blockchain DB\n";
+    }
 
-public:
-    // Constructor
-    BlockDB();
-
-    // Destructor
-    ~BlockDB();
-
-    // Open or create the database at path
-    bool open(const std::string& path);
-
-    // Close the database cleanly
-    void close();
-
-    // Write a block to the DB
-    bool writeBlock(const Block& block);
-
-    // Read a block from the DB by hash
-    bool readBlock(const std::string& hash, Block& blockOut);
-
-    // Check if the DB has a block by hash
-    bool hasBlock(const std::string& hash);
-};
+    // load existing blocks from DB if any
+    leveldb::Iterator* it = blockDB.db->NewIterator(leveldb::ReadOptions());
+    for (it->SeekToFirst(); it->Valid(); it->Next()) {
+        Block b;
+        if (blockDB.readBlock(it->key().ToString(), b)) {
+            chain.push_back(b);
+        }
+    }
+    delete it;
+}
