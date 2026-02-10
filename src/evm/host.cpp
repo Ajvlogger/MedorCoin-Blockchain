@@ -1,68 +1,66 @@
+#include "execute.h"
 #include "host.h"
+#include <evmone/evmone.hpp>
 #include <iostream>
-#include <unordered_map>
+#include <algorithm>
 
-// Simple in‑memory stubs (replace with real LevelDB state)
-static std::unordered_map<std::string, std::vector<uint8_t>> contract_code_db;
-static std::unordered_map<std::string, std::unordered_map<std::string, evmc_bytes32>> contract_storage_db;
-static std::unordered_map<std::string, uint64_t> balance_db;
+// Executes EVM code and returns result + gas used
+EVMExecutionResult EVMExecutor::executeContract(
+    EVMStorage &storage,
+    const std::vector<uint8_t> &bytecode,
+    const std::vector<uint8_t> &inputData,
+    uint64_t gasLimit,
+    evmc_address to,
+    evmc_address from
+) {
+    // Initialize VM (evmone)
+    static auto vm = evmc::VM{evmc_create_evmone()};
 
-evmc_bytes32 MedorEVMHost::get_storage(evmc::address addr, evmc_bytes32 key)
-{
-    std::string address_str(reinterpret_cast<const char*>(addr.bytes), 20);
-    std::string key_str(reinterpret_cast<const char*>(key.bytes), 32);
+    // Create host backed by RocksDB
+    MedorEVMHost host(storage);
 
-    auto& storage = contract_storage_db[address_str];
-    if (storage.find(key_str) != storage.end()) {
-        return storage[key_str];
+    // Prepare message
+    evmc_message msg{};
+    msg.kind = EVMC_CALL;
+    msg.depth = 0;
+    msg.gas = gasLimit;
+    msg.destination = to;
+    msg.sender = from;
+    msg.input_data = inputData.data();
+    msg.input_size = inputData.size();
+    msg.flags = 0;
+    msg.value = 0; // native value (not yet supported)
+
+    // Execute
+    evmc_result result = vm.execute(
+        /* host */ host,
+        /* revision */ EVMC_CANCUN,
+        /* code */ bytecode.data(),
+        /* code_size */ bytecode.size(),
+        /* msg */ &msg
+    );
+
+    // Compute gas used
+    uint64_t gasLeft = result.gas_left;
+    uint64_t gasUsed = (gasLimit > gasLeft ? gasLimit - gasLeft : 0);
+
+    // Prepare output
+    std::vector<uint8_t> out;
+    if (result.output_size > 0 && result.output_data != nullptr) {
+        out.assign(result.output_data,
+                   result.output_data + result.output_size);
     }
-    return evmc_bytes32{};
-}
 
-evmc_storage_status MedorEVMHost::set_storage(evmc::address addr, evmc_bytes32 key, evmc_bytes32 val)
-{
-    std::string address_str(reinterpret_cast<const char*>(addr.bytes), 20);
-    std::string key_str(reinterpret_cast<const char*>(key.bytes), 32);
-
-    contract_storage_db[address_str][key_str] = val;
-    return EVMC_STORAGE_MODIFIED;
-}
-
-evmc_bytes32 MedorEVMHost::get_code_hash(evmc::address addr)
-{
-    std::string address_str(reinterpret_cast<const char*>(addr.bytes), 20);
-    if (contract_code_db.find(address_str) != contract_code_db.end()) {
-        // Compute simple hash (not real Keccak)
-        evmc_bytes32 h {};
-        const auto &code = contract_code_db[address_str];
-        for (size_t i = 0; i < code.size() && i < 32; ++i) {
-            h.bytes[i] = code[i];
-        }
-        return h;
+    // Show status
+    if (result.status_code != EVMC_SUCCESS) {
+        std::cout << "EVM execution failed, status: "
+                  << result.status_code << std::endl;
     }
-    return evmc_bytes32{};
-}
 
-std::vector<uint8_t> MedorEVMHost::get_code(evmc::address addr)
-{
-    std::string address_str(reinterpret_cast<const char*>(addr.bytes), 20);
-    if (contract_code_db.find(address_str) != contract_code_db.end()) {
-        return contract_code_db[address_str];
-    }
-    return {};
-}
-
-uint64_t MedorEVMHost::get_balance(evmc::address addr)
-{
-    std::string address_str(reinterpret_cast<const char*>(addr.bytes), 20);
-    if (balance_db.find(address_str) != balance_db.end()) {
-        return balance_db[address_str];
-    }
-    return 0;
-}
-
-void MedorEVMHost::emit_log(evmc::address addr, const uint8_t* data, size_t data_size,
-                            const evmc::bytes32 topics[], size_t topics_count)
-{
-    std::cout << "EVM Log emitted (not stored): " << std::string(reinterpret_cast<const char*>(data), data_size) << std::endl;
+    // Return
+    return EVMExecutionResult {
+        result.status_code == EVMC_SUCCESS,
+        gasUsed,
+        out
+    };
 }
