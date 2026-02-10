@@ -1,66 +1,106 @@
-#include "execute.h"
 #include "host.h"
-#include <evmone/evmone.hpp>
+#include "storage.h"
+
 #include <iostream>
 #include <algorithm>
+#include <cstring>
 
-// Executes EVM code and returns result + gas used
-EVMExecutionResult EVMExecutor::executeContract(
-    EVMStorage &storage,
-    const std::vector<uint8_t> &bytecode,
-    const std::vector<uint8_t> &inputData,
-    uint64_t gasLimit,
-    evmc_address to,
-    evmc_address from
-) {
-    // Initialize VM (evmone)
-    static auto vm = evmc::VM{evmc_create_evmone()};
+// ==========================
+// Constructor
+// ==========================
 
-    // Create host backed by RocksDB
-    MedorEVMHost host(storage);
+MedorEVMHost::MedorEVMHost(EVMStorage &storage)
+    : storageDB(storage)
+{
+}
 
-    // Prepare message
-    evmc_message msg{};
-    msg.kind = EVMC_CALL;
-    msg.depth = 0;
-    msg.gas = gasLimit;
-    msg.destination = to;
-    msg.sender = from;
-    msg.input_data = inputData.data();
-    msg.input_size = inputData.size();
-    msg.flags = 0;
-    msg.value = 0; // native value (not yet supported)
+// ==========================
+// Persistent Storage Access
+// ==========================
 
-    // Execute
-    evmc_result result = vm.execute(
-        /* host */ host,
-        /* revision */ EVMC_CANCUN,
-        /* code */ bytecode.data(),
-        /* code_size */ bytecode.size(),
-        /* msg */ &msg
-    );
+evmc_bytes32 MedorEVMHost::get_storage(evmc::address addr, evmc_bytes32 key)
+{
+    // Convert address + key bytes to strings
+    std::string addrStr(reinterpret_cast<const char*>(addr.bytes), sizeof(addr.bytes));
+    std::string keyStr(reinterpret_cast<const char*>(key.bytes), sizeof(key.bytes));
 
-    // Compute gas used
-    uint64_t gasLeft = result.gas_left;
-    uint64_t gasUsed = (gasLimit > gasLeft ? gasLimit - gasLeft : 0);
+    // Read from RocksDB
+    std::string stored = storageDB.getContractStorage(addrStr, keyStr);
 
-    // Prepare output
-    std::vector<uint8_t> out;
-    if (result.output_size > 0 && result.output_data != nullptr) {
-        out.assign(result.output_data,
-                   result.output_data + result.output_size);
+    evmc_bytes32 out{};
+    if (!stored.empty()) {
+        // Copy up to 32 bytes
+        std::memcpy(out.bytes, stored.data(), std::min(stored.size(), sizeof(out.bytes)));
     }
+    return out;
+}
 
-    // Show status
-    if (result.status_code != EVMC_SUCCESS) {
-        std::cout << "EVM execution failed, status: "
-                  << result.status_code << std::endl;
+evmc_storage_status MedorEVMHost::set_storage(
+    evmc::address addr,
+    evmc_bytes32 key,
+    evmc_bytes32 val)
+{
+    // Convert address + key + value to strings
+    std::string addrStr(reinterpret_cast<const char*>(addr.bytes), sizeof(addr.bytes));
+    std::string keyStr(reinterpret_cast<const char*>(key.bytes), sizeof(key.bytes));
+
+    std::string valStr(reinterpret_cast<const char*>(val.bytes), sizeof(val.bytes));
+
+    // Write into RocksDB
+    bool ok = storageDB.putContractStorage(addrStr, keyStr, valStr);
+
+    return ok ? EVMC_STORAGE_MODIFIED : EVMC_STORAGE_UNCHANGED;
+}
+
+// ==========================
+// Contract Code Access
+// ==========================
+
+evmc_bytes32 MedorEVMHost::get_code_hash(evmc::address addr)
+{
+    // Get bytecode from persistent storage
+    std::vector<uint8_t> code = storageDB.getContractCode(
+        std::string(reinterpret_cast<const char*>(addr.bytes), sizeof(addr.bytes)));
+
+    evmc_bytes32 hash{};
+    if (code.empty()) return hash;
+
+    // Simple placeholder — later replace with a real hash (Keccak256)
+    for (size_t i = 0; i < code.size() && i < sizeof(hash.bytes); ++i) {
+        hash.bytes[i] = code[i];
     }
+    return hash;
+}
 
-    // Return
-    return EVMExecutionResult {
-        result.status_code == EVMC_SUCCESS,
-        gasUsed,
-        out
-    };
+std::vector<uint8_t> MedorEVMHost::get_code(evmc::address addr)
+{
+    return storageDB.getContractCode(
+        std::string(reinterpret_cast<const char*>(addr.bytes), sizeof(addr.bytes)));
+}
+
+// ==========================
+// Balance Handling
+// ==========================
+
+uint64_t MedorEVMHost::get_balance(evmc::address addr)
+{
+    // Default 0 until native balance support is added
+    return storageDB.getBalance(
+        std::string(reinterpret_cast<const char*>(addr.bytes), sizeof(addr.bytes)));
+}
+
+// ==========================
+// Event Logging
+// ==========================
+
+void MedorEVMHost::emit_log(
+    evmc::address addr,
+    const uint8_t *data,
+    size_t data_size,
+    const evmc::bytes32 topics[],
+    size_t topics_count)
+{
+    std::cout << "[EVM LOG] Contract: 0x";
+    for (auto b : addr.bytes) std::cout << std::hex << (int)b;
+    std::cout << " DataSize: " << std::dec << data_size << std::endl;
 }
