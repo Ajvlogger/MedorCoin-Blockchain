@@ -3,58 +3,64 @@
 #include <vector>
 #include <string>
 #include <cstdint>
-#include <unordered_map>
 #include "block.h"
 #include "transaction.h"
 #include "utxo.h"
+#include "db/blockdb.h"
+#include "db/accountdb.h"
 
 class Blockchain {
 public:
     Blockchain(const std::string &ownerAddr);
 
-    // Chain storage
+    // Chain state
     std::vector<Block> chain;
     UTXOSet utxoSet;
+
+    // Config
     std::string ownerAddress;
     uint32_t medor;            // PoW difficulty
     uint64_t totalSupply;
     uint64_t maxSupply;
 
-    // Base fee support
+    // Persistent DBs
+    BlockDB blockDB;
+    AccountDB accountDB;
+
+    // ---------------------------
+    // Base fee (for gas market)
+    // ---------------------------
     uint64_t getCurrentBaseFee() const;
     void setCurrentBaseFee(uint64_t fee);
+    void burnBaseFees(uint64_t amount);
+    void adjustBaseFee(uint64_t gasUsed, uint64_t gasLimit);
 
-    // Account state (balances)
+    // ---------------------------
+    // Account balance helpers
+    // ---------------------------
     uint64_t getBalance(const std::string &addr) const;
     void setBalance(const std::string &addr, uint64_t amount);
     void addBalance(const std::string &addr, uint64_t amount);
 
-    // Burn base fees (protocol treasury / deflation)
-    void burnBaseFees(uint64_t amount);
-
+    // ---------------------------
     // Block reward + mining
+    // ---------------------------
     uint64_t calculateReward();
     void mineBlock(Block &block);
 
-    // Add block with transactions
+    // Add a block with transactions
     void addBlock(const std::string &minerAddress,
                   std::vector<Transaction> &transactions);
 
+    // ---------------------------
     // Chain validation
+    // ---------------------------
     bool validateBlock(const Block &block, const Block &previousBlock);
     bool validateChain();
 
-    // Optional debug dump
+    // Debug print
     void printChain() const;
 
-    // Base fee update helper
-    void adjustBaseFee(uint64_t gasUsed, uint64_t gasLimit);
-
 private:
-    class BlockDB blockDB;
-    // Base fee per gas for the next block
-    uint64_t baseFeePerGas = 1;  // start with 1 unit
-
-    // Account balances (in memory)
-    mutable std::unordered_map<std::string, uint64_t> balanceMap;
+    uint64_t baseFeePerGas = 1;  // base fee starts at 1 unit
 };
