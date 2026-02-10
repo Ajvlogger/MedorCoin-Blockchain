@@ -6,10 +6,9 @@
 #include <evmc/evmc.hpp>
 
 class EVMStorage;
+class Blockchain;
 
-// Executes EVM code using persistent storage
-class EVMExecutor
-{
+class EVMExecutor {
 public:
     static evmc_result executeContract(
         EVMStorage &storage,
@@ -17,8 +16,10 @@ public:
         const std::vector<uint8_t> &inputData,
         uint64_t gasLimit,
         evmc_address to,
-        evmc_address from
+        evmc_address from,
+        Blockchain &chain,
+        const std::string &minerAddress
     );
 };
 
-#endif // MEDOR_EVM_EXECUTE_H
+#endif
