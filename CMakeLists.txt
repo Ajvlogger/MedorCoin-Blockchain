@@ -23,9 +23,23 @@ include_directories(
 # Find Libraries
 # ----------------------------
 
-# LevelDB
+# Find LevelDB
 find_library(LEVELDB_LIB
     NAMES leveldb
+)
+
+# Find RocksDB
+find_library(ROCKSDB_LIB
+    NAMES rocksdb
+)
+
+# Link them
+target_link_libraries(medorcoin
+    PRIVATE
+        ${LEVELDB_LIB}
+        ${ROCKSDB_LIB}
+        evmone
+        nlohmann_json::nlohmann_json
 )
 
 # RocksDB
