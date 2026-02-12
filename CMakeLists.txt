@@ -16,42 +16,40 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/src/db
     ${PROJECT_SOURCE_DIR}/src/abi
     ${PROJECT_SOURCE_DIR}/src/crypto/keccak
+    ${PROJECT_SOURCE_DIR}/src/crypto  # for secp256k1 helpers
     ${PROJECT_SOURCE_DIR}/src/net
+)
+
+# also system include path for secp256k1 if installed globally
+include_directories(
+    /usr/local/include
 )
 
 # ----------------------------
 # Find Libraries
 # ----------------------------
 
-# Find LevelDB
+# find LevelDB
 find_library(LEVELDB_LIB
     NAMES leveldb
 )
 
-# Find RocksDB
+# find RocksDB
 find_library(ROCKSDB_LIB
     NAMES rocksdb
 )
 
-# Link them
-target_link_libraries(medorcoin
-    PRIVATE
-        ${LEVELDB_LIB}
-        ${ROCKSDB_LIB}
-        evmone
-        nlohmann_json::nlohmann_json
+# find secp256k1 (crypto)
+find_library(SECP256K1_LIB
+    NAMES secp256k1
+    PATHS /usr/local/lib
 )
 
-# RocksDB
-find_library(ROCKSDB_LIB
-    NAMES rocksdb
-)
-
-# JSON library (nlohmann/json)
+# JSON library (header‑only via find_package)
 find_package(nlohmann_json 3.2.0 REQUIRED)
 
 # ----------------------------
-# EVM1 Engine
+# EVM1 Engine (evmone)
 # ----------------------------
 add_subdirectory(third_party/evmone)
 
@@ -84,7 +82,7 @@ set(SOURCE_FILES
     # UTXO
     src/utxo.cpp
 
-    # Wallet
+    # Wallet logic (you will add secp256k1 calls here)
     src/wallet.cpp
 )
 
@@ -102,6 +100,7 @@ target_link_libraries(medorcoin
     PRIVATE
         ${LEVELDB_LIB}
         ${ROCKSDB_LIB}
+        ${SECP256K1_LIB}          # secp256k1 crypto
         evmone
         nlohmann_json::nlohmann_json
 )
