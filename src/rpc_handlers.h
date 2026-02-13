@@ -1,13 +1,24 @@
 #pragma once
+
 #include <string>
 #include <nlohmann/json.hpp>
-#include "receipt.h"
 
-/**
- * Handle eth_getTransactionReceipt JSON‑RPC method.
- *
- * @param params JSON‑RPC params (expected: [txHashString])
- * @param id     JSON‑RPC request id
- * @return JSON string response with full receipt fields
- */
-std::string rpc_getTransactionReceipt(const nlohmann::json &params, int id);
+// Web3 namespace
+std::string rpc_web3_clientVersion(const nlohmann::json &params, int id);
+
+// Net namespace
+std::string rpc_net_version(const nlohmann::json &params, int id);
+// (Optional: add net_listening, net_peerCount if implemented)
+
+// Eth namespace: core blockchain methods
+std::string rpc_eth_blockNumber(const nlohmann::json &params, int id);
+std::string rpc_eth_getBalance(const nlohmann::json &params, int id);
+std::string rpc_eth_getTransactionCount(const nlohmann::json &params, int id);
+std::string rpc_eth_sendRawTransaction(const nlohmann::json &params, int id);
+std::string rpc_eth_getTransactionByHash(const nlohmann::json &params, int id);
+std::string rpc_eth_getTransactionReceipt(const nlohmann::json &params, int id);
+
+// (Optional: if implemented)
+std::string rpc_eth_getCode(const nlohmann::json &params, int id);
+std::string rpc_eth_call(const nlohmann::json &params, int id);
+std::string rpc_eth_estimateGas(const nlohmann::json &params, int id);
