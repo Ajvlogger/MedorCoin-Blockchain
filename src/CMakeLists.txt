@@ -1,29 +1,41 @@
-cmake_minimum_required(VERSION 3.20)
+# Build executable for MedorCoin node
 
-# MedorCoin sources
-set(SRC_FILES
+# All source files
+set(SOURCES
     main.cpp
     blockchain.cpp
     transaction.cpp
-    mempool.cpp
-    # Add other source files here
+    utxo.cpp
+    crypto/keystore.cpp
+    crypto/evm_sign.cpp
+    crypto/rlp.cpp
+    crypto/signature.cpp
+    net/net_manager.cpp
+    net/sync_manager.cpp
+    net/serialization.cpp
+    blockchain_fork.cpp
 )
 
-# Create executable
-add_executable(medorcoin ${SRC_FILES})
+# Add the executable
+add_executable(MedorCoinNode ${SOURCES})
 
-# Include directories (public headers)
-target_include_directories(medorcoin PRIVATE
-    ${PROJECT_SOURCE_DIR}/include
+# Public include directories for this target
+target_include_directories(MedorCoinNode
+    PUBLIC
+        ${PROJECT_SOURCE_DIR}/../include
+        ${PROJECT_SOURCE_DIR}
+        ${PROJECT_SOURCE_DIR}/net
+        ${PROJECT_SOURCE_DIR}/crypto
 )
 
-# Link external dependencies
+# Link libraries if needed (example: leveldb, secp256k1, evmc)
 find_package(LevelDB REQUIRED)
-find_package(secp256k1 REQUIRED)
-# If using evmc and libp2p, add find_package or FetchContent below
+find_library(SECP256K1 secp256k1)
+find_library(EVMC evmc)  # adjust as needed
 
-target_link_libraries(medorcoin PRIVATE
-    LevelDB::leveldb
-    secp256k1::secp256k1
-    # Link other libs here (evmc, libp2p, etc.)
+target_link_libraries(MedorCoinNode
+    PRIVATE
+        LevelDB::LevelDB
+        ${SECP256K1}
+        ${EVMC}
 )
