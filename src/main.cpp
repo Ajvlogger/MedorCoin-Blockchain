@@ -1,65 +1,41 @@
+#include "net/net_manager.h"
 #include "blockchain.h"
 #include "transaction.h"
-#include "net/net_manager.h"
-#include "consensus/validator_registry.h"
-
+#include <nlohmann/json.hpp>
 #include <iostream>
-#include <vector>
-#include <string>
 
 int main() {
-    // -------------------------------
-    // 1) Load PoA validator registry
-    // -------------------------------
-    ValidatorRegistry::loadValidators();
-    std::cout << "[PoA] Loaded " 
-              << ValidatorRegistry::getValidators().size() 
-              << " validators\n";
-
-    // -------------------------------
-    // 2) Create blockchain instance
-    // -------------------------------
-    std::string ownerAddress = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"; // must be a validator
-    Blockchain medorChain(ownerAddress);
-
-    // -------------------------------
-    // 3) Start network manager
-    // -------------------------------
+    Blockchain medorChain("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
     NetworkManager net("127.0.0.1:4001");
 
     if (!net.start()) {
-        std::cerr << "[Network] Failed to start\n";
+        std::cerr << "[Network] Failed\n";
         return -1;
     }
 
-    // -------------------------------
-    // 4) Connect bootstrap peers
-    // -------------------------------
-    std::vector<std::string> bootstrap = {
-        "127.0.0.1:4002",
-        "127.0.0.1:4003"
-    };
-    net.connectBootstrap(bootstrap);
+    // Handle incoming messages
+    net.onMessage([&](const nlohmann::json &msg) {
+        if (msg["type"] == "poa_block") {
+            std::cout << "[Network] Received PoA block message\n";
+            nlohmann::json b = msg["block"];
+            Block block = deserializeBlock(b);
 
-    std::cout << "[Network] Node started and connected to bootstrap peers\n";
+            // Validate PoA signature before accepting
+            if (verifyBlockPoA(block)) {
+                std::cout << "[Network] Valid PoA block signature\n";
+                medorChain.addBlockFromPeer(block);
+            } else {
+                std::cerr << "[Network] Invalid PoA block signature\n";
+            }
+        } else if (msg["type"] == "tx") {
+            // Deserialize and add to mempool
+            Transaction tx = deserializeTx(msg["tx"]);
+            globalMempool.addTransaction(tx);
+        }
+    });
 
-    // -------------------------------
-    // 5) Example broadcast (placeholder)
-    // -------------------------------
-    std::string dummyBlockHex = "01020304deadbeef";
-    std::string dummyTxHex    = "af23be4c";
-
-    net.broadcastBlock(dummyBlockHex);
-    net.broadcastTx(dummyTxHex);
-
-    // -------------------------------
-    // 6) Main loop placeholder
-    // -------------------------------
+    std::cout << "[Network] Listening…\n";
     while (true) {
-        // In a real node, handle network messages, new txs, and block production
-        // For PoA, check if this node is validator, then produce block
-        // sleep(1) or async wait...
+        // Poll loop for network events
     }
-
-    return 0;
 }
