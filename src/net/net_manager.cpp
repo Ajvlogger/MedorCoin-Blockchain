@@ -4,61 +4,48 @@
 #include <string>
 #include <vector>
 #include <mutex>
-#include <thread>
-#include <functional>
 #include <unordered_set>
+#include <functional>
 
 using json = nlohmann::json;
 
-// Basic peer representation
-struct Peer {
-    std::string address;
-    bool connected = false;
-};
-
+// Simple PeerManager stub
 class PeerManager {
 public:
     explicit PeerManager(const std::string &listenAddr)
         : listenAddress(listenAddr) {}
 
     bool start() {
-        // Start listener thread (placeholder)
         std::cout << "[Net] Listening on " << listenAddress << std::endl;
-        listening = true;
         return true;
     }
 
     bool connectTo(const std::string &peerAddr) {
-        std::lock_guard<std::mutex> lock(peerMutex);
+        std::lock_guard<std::mutex> lock(mtx);
         peers.insert(peerAddr);
-        std::cout << "[Net] Connected to peer " << peerAddr << std::endl;
+        std::cout << "[Net] Connected to " << peerAddr << std::endl;
         return true;
     }
 
     void broadcast(const json &msg) {
-        std::lock_guard<std::mutex> lock(peerMutex);
-        std::string serialized = msg.dump();
+        std::string out = msg.dump();
+        std::lock_guard<std::mutex> lock(mtx);
         for (auto &p : peers) {
-            // In a real implementation, send over socket
-            std::cout << "[Net] Broadcast to " << p << ": " << serialized << std::endl;
-            // placeholder: simulate receive on all peers
-            if (onMessageHandler) onMessageHandler(msg);
+            std::cout << "[Net] Sent to " << p << " : " << out << std::endl;
+            if (onMsg) onMsg(msg);
         }
     }
 
     void setHandler(const std::function<void(const json &)> &handler) {
-        onMessageHandler = handler;
+        onMsg = handler;
     }
 
 private:
     std::string listenAddress;
-    bool listening = false;
-    std::mutex peerMutex;
     std::unordered_set<std::string> peers;
-    std::function<void(const json &)> onMessageHandler;
+    std::mutex mtx;
+    std::function<void(const json &)> onMsg;
 };
-
-// ------------ NetworkManager Implementation ------------
 
 NetworkManager::NetworkManager(const std::string &listenAddr)
     : peerMgr(nullptr) {
@@ -66,7 +53,7 @@ NetworkManager::NetworkManager(const std::string &listenAddr)
 }
 
 NetworkManager::~NetworkManager() {
-    if (peerMgr != nullptr) {
+    if (peerMgr) {
         delete peerMgr;
         peerMgr = nullptr;
     }
@@ -85,14 +72,14 @@ bool NetworkManager::connectBootstrap(const std::vector<std::string> &bootstrap)
     return true;
 }
 
-void NetworkManager::broadcastBlock(const json &blockMsg) {
+void NetworkManager::broadcastBlock(const nlohmann::json &blockMsg) {
     if (peerMgr) peerMgr->broadcast(blockMsg);
 }
 
-void NetworkManager::broadcastTx(const json &txMsg) {
+void NetworkManager::broadcastTx(const nlohmann::json &txMsg) {
     if (peerMgr) peerMgr->broadcast(txMsg);
 }
 
-void NetworkManager::onMessage(const std::function<void(const json &)> &handler) {
+void NetworkManager::onMessage(const std::function<void(const nlohmann::json &)> &handler) {
     if (peerMgr) peerMgr->setHandler(handler);
 }
