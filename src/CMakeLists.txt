@@ -1,10 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
-
 project(MedorCoin VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# -----------------------------------
+# Source files
+# -----------------------------------
 set(SOURCES
     main.cpp
     blockchain.cpp
@@ -22,6 +24,9 @@ set(SOURCES
 
 add_executable(MedorCoinNode ${SOURCES})
 
+# -----------------------------------
+# Include directories
+# -----------------------------------
 target_include_directories(MedorCoinNode
     PUBLIC
         ${PROJECT_SOURCE_DIR}
@@ -30,7 +35,9 @@ target_include_directories(MedorCoinNode
         ${PROJECT_SOURCE_DIR}/../include
 )
 
-# ---- LevelDB integration via pkg-config ----
+# -----------------------------------
+# LevelDB via pkg-config
+# -----------------------------------
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LEVELDB REQUIRED leveldb)
 
@@ -44,12 +51,25 @@ target_include_directories(MedorCoinNode
         ${LEVELDB_INCLUDE_DIRS}
 )
 
-# ---- Optional crypto libs ----
+# -----------------------------------
+# OpenSSL (optional)
+# -----------------------------------
 find_package(OpenSSL REQUIRED)
-target_link_libraries(MedorCoinNode PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(MedorCoinNode
+    PRIVATE
+        OpenSSL::SSL
+        OpenSSL::Crypto
+)
 
-find_package(PkgConfig REQUIRED)
+# -----------------------------------
+# secp256k1 via pkg-config (if installed)
+# -----------------------------------
 pkg_check_modules(SECP256K1 REQUIRED libsecp256k1)
-
-target_link_libraries(MedorCoinNode PRIVATE ${SECP256K1_LIBRARIES})
-target_include_directories(MedorCoinNode PRIVATE ${SECP256K1_INCLUDE_DIRS})
+target_link_libraries(MedorCoinNode
+    PRIVATE
+        ${SECP256K1_LIBRARIES}
+)
+target_include_directories(MedorCoinNode
+    PRIVATE
+        ${SECP256K1_INCLUDE_DIRS}
+)
