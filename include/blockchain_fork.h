@@ -4,10 +4,13 @@
 #include "block.h"
 
 /**
- * Extend blockchain with fork resolution.
- * Uses longest valid chain rule: the chain with more blocks wins.
+ * Implements longest‑chain fork resolution.
+ * If candidateChain is strictly longer and valid,
+ * replaces localChain with candidate.
+ *
+ * @param candidateChain  The peer’s offered chain
+ * @param localChain      Your current chain
+ * @return true if localChain was replaced
  */
-class Blockchain;
-
-bool resolveForkChain(const std::vector<Block> &candidateChain,
-                      std::vector<Block> &localChain);
+bool resolveLongestChain(const std::vector<Block> &candidateChain,
+                         std::vector<Block> &localChain);
