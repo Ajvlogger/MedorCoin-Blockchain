@@ -5,11 +5,12 @@
 #include <sstream>
 #include <iomanip>
 
-// Helpers: format hex values
+// Helpers: convert byte arrays and integers to hex
 static std::string toHex(const std::vector<uint8_t> &bytes) {
     std::ostringstream ss;
     ss << "0x";
-    for (auto b : bytes) ss << std::hex << std::setw(2) << std::setfill('0') << (int)b;
+    for (auto b : bytes)
+        ss << std::hex << std::setw(2) << std::setfill('0') << (int)b;
     return ss.str();
 }
 
@@ -24,6 +25,7 @@ std::string rpc_getTransactionReceipt(const nlohmann::json &params, int id) {
     response["jsonrpc"] = "2.0";
     response["id"] = id;
 
+    // Must have exactly 1 parameter: txHash
     if (!params.is_array() || params.size() != 1) {
         response["error"] = {{"code", -32602}, {"message", "Invalid params"}};
         return response.dump();
@@ -33,6 +35,7 @@ std::string rpc_getTransactionReceipt(const nlohmann::json &params, int id) {
 
     auto optReceipt = ReceiptStore::getReceiptByHash(txHash);
     if (!optReceipt) {
+        // Receipt not found => null
         response["result"] = nullptr;
         return response.dump();
     }
@@ -44,40 +47,53 @@ std::string rpc_getTransactionReceipt(const nlohmann::json &params, int id) {
     receiptJson["transactionIndex"] = hexUInt(r.transactionIndex);
     receiptJson["blockHash"]        = "0x" + r.blockHash;
     receiptJson["blockNumber"]      = hexUInt(r.blockNumber);
-    receiptJson["from"]             = toHex(std::vector<uint8_t>(r.from.begin(), r.from.end()));
-    receiptJson["to"]               = toHex(std::vector<uint8_t>(r.to.begin(), r.to.end()));
 
-    // Contract creation address (null if not created)
+    receiptJson["from"] = toHex(
+        std::vector<uint8_t>(r.from.begin(), r.from.end()));
+
+    // `to` may be empty if this was a contract creation
+    if (r.to != std::array<uint8_t,20>{}) {
+        receiptJson["to"] = toHex(
+            std::vector<uint8_t>(r.to.begin(), r.to.end()));
+    } else {
+        receiptJson["to"] = nullptr;
+    }
+
+    // contractAddress: null if not contract creation
     if (r.contractAddress.has_value()) {
-        receiptJson["contractAddress"] = toHex(std::vector<uint8_t>(r.contractAddress->begin(),
-                                                                    r.contractAddress->end()));
+        receiptJson["contractAddress"] = toHex(
+            std::vector<uint8_t>(r.contractAddress->begin(),
+                                 r.contractAddress->end()));
     } else {
         receiptJson["contractAddress"] = nullptr;
     }
 
-    receiptJson["cumulativeGasUsed"]   = hexUInt(r.cumulativeGasUsed);
-    receiptJson["gasUsed"]             = hexUInt(r.gasUsed);
-    receiptJson["effectiveGasPrice"]   = hexUInt(r.effectiveGasPrice);
+    receiptJson["cumulativeGasUsed"] = hexUInt(r.cumulativeGasUsed);
+    receiptJson["gasUsed"]           = hexUInt(r.gasUsed);
+    receiptJson["effectiveGasPrice"] = hexUInt(r.effectiveGasPrice);
 
-    receiptJson["logsBloom"] = toHex(std::vector<uint8_t>(r.logsBloom.begin(),
-                                                           r.logsBloom.end()));
+    // Bloom as hex
+    receiptJson["logsBloom"] = toHex(
+        std::vector<uint8_t>(r.logsBloom.begin(), r.logsBloom.end()));
 
+    // Logs array
     receiptJson["logs"] = nlohmann::json::array();
     for (auto &log : r.logs) {
         nlohmann::json logJson;
-        logJson["address"] = toHex(std::vector<uint8_t>(log.address.begin(),
-                                                        log.address.end()));
+        logJson["address"] = toHex(
+            std::vector<uint8_t>(log.address.begin(), log.address.end()));
 
         logJson["topics"] = nlohmann::json::array();
         for (auto &topic : log.topics) {
-            logJson["topics"].push_back(toHex(std::vector<uint8_t>(topic.begin(),
-                                                                   topic.end())));
+            logJson["topics"].push_back(
+                toHex(std::vector<uint8_t>(topic.begin(), topic.end())));
         }
-
         logJson["data"] = toHex(log.data);
+
         receiptJson["logs"].push_back(logJson);
     }
 
+    // status and type
     receiptJson["status"] = r.status ? "0x1" : "0x0";
     receiptJson["type"]   = hexUInt(r.txType);
 
