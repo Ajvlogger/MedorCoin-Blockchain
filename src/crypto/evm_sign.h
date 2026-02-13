@@ -1,10 +1,11 @@
 #pragma once
 
 #include <vector>
+#include "transaction.h"
 #include <string>
-#include "../transaction.h"
 
 std::vector<uint8_t> signEvmTransaction(
     Transaction &tx,
-    const std::string &privKeyPath
+    const std::string &privKeyPath,
+    uint64_t chainId
 );
