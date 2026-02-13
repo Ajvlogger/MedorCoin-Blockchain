@@ -1,35 +1,36 @@
+#include "blockchain_fork.h"
 #include "blockchain.h"
-#include <algorithm>
 #include <iostream>
 
 /**
- * Fork resolution: longest valid chain wins.
+ * Compares candidate chain and local chain.
+ * If candidate is longer and fully valid (links correctly), adopt it.
  */
-bool Blockchain::resolveFork(const std::vector<Block> &candidateChain) {
-    // Must start with the same genesis block
-    if (candidateChain.empty() || chain.empty()) return false;
-    if (candidateChain.front().hash != chain.front().hash) return false;
+bool resolveForkChain(const std::vector<Block> &candidateChain,
+                      std::vector<Block> &localChain) {
 
-    // Compare lengths; longer chain wins
-    if (candidateChain.size() > chain.size()) {
-        // Validate entire candidate chain before switching
+    // Genesis must match
+    if (candidateChain.empty() || localChain.empty()) return false;
+    if (candidateChain.front().hash != localChain.front().hash) return false;
+
+    // Only replace if candidate is longer
+    if (candidateChain.size() > localChain.size()) {
+        // Validate entire candidate
         for (size_t i = 1; i < candidateChain.size(); ++i) {
             const Block &prev = candidateChain[i - 1];
             const Block &curr = candidateChain[i];
 
-            // Check previousHash match
+            // Must link: curr.previousHash == prev.hash
             if (curr.previousHash != prev.hash) {
-                std::cerr << "[FORK] Invalid candidate block at index " << i << std::endl;
+                std::cerr << "[Fork] Invalid chain at index " << i << std::endl;
                 return false;
             }
-
-            // Optionally add other validation: signature, merkle, gas limits, etc.
         }
 
-        // Replace local chain with the candidate chain
-        chain = candidateChain;
-        std::cout << "[FORK] Chain replaced with a longer fork of length "
-                  << chain.size() << std::endl;
+        // Accept new chain
+        localChain = candidateChain;
+        std::cout << "[Fork] Chain resolved — adopted longer chain of length "
+                  << localChain.size() << std::endl;
         return true;
     }
 
