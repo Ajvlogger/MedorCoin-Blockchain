@@ -1,132 +1,34 @@
-📋 MedorCoin Full Development & Deployment Checklist
+cmake_minimum_required(VERSION 3.20)
 
-🧰 Project Setup
-	•	Project root has CMakeLists.txt
-	•	src/ and include/ folders exist
-	•	LevelDB installed and linked
-	•	Build tools installed (GCC/Clang, CMake)
-	•	Dependencies (libp2p, secp256k1, evmc) configured
-	•	Secure configuration for keys and secrets (KMS/HSM)
+# Project metadata
+project(MedorCoin
+    VERSION 0.1
+    DESCRIPTION "MedorCoin Blockchain"
+    LANGUAGES CXX
+)
 
-🛠️ Build & CI
-	•	Create build/ folder
-	•	cmake .. runs cleanly
-	•	make -j$(nproc) builds without errors
-	•	All build warnings treated as errors
-	•	GitHub Actions CI configured
-	•	Automated builds on PR and main branch
+# Use C++17 standard
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-🧱 Core Blockchain Components
-	•	Block structure defined & serialized
-	•	Transaction logic implemented (UTXO + EVM)
-	•	Keccak‑256 & crypto primitives tested
-	•	PoA consensus integrated (validator registry + signing)
-	•	Validator key management solution defined
+# Enable coverage flags when requested
+option(ENABLE_COVERAGE "Enable code coverage" OFF)
+if(ENABLE_COVERAGE)
+    add_compile_options(--coverage)
+    add_link_options(--coverage)
+endif()
 
-🔗 Consensus & Networking
+# Include directories (for headers)
+include_directories(
+    ${PROJECT_SOURCE_DIR}/include
+)
 
-Proof‑of‑Authority (PoA)
-	•	Validator registry list loaded on start
-	•	Validator signing of blocks implemented
-	•	Block signature verification on peers
-	•	Validator authority enforcement
-	•	Validator rotation logic defined
-	•	Governance path for adding/removing validators
+# Add subdirectories
+add_subdirectory(src)
 
-P2P Networking
-	•	NetworkManager implemented
-	•	JSON block/tx message formats standardized
-	•	Broadcast + receive handlers registered
-	•	libp2p skeleton integrated for real transport
-	•	Peer discovery (mDNS/DHT) set up
-	•	NAT traversal & connection resilience
-	•	Backpressure & reconnection logic
-
-💾 Storage & Persistence
-	•	LevelDB block storage (BlockDB) working
-	•	Account DB for balances
-	•	Chain recovery after restart
-	•	Optional mempool persistence
-
-🧪 Testing
-
-Unit & Integration
-	•	Transaction serialization tests
-	•	Consensus logic tests
-	•	Storage read/write tests
-	•	Networking message tests
-	•	RPC handler unit tests
-
-Multi‑Node & Network
-	•	Local multi‑node test cluster
-	•	Block propagation tests
-	•	Network partition & reconnection tests
-	•	Validator join/leave tests
-	•	Test rollback/chain reorg simulation
-
-Security & Fuzzing
-	•	Fuzz testing for serialization, consensus
-	•	Mutation tests for invalid blocks/txs
-	•	Crypto edge case tests
-	•	Simulator tests for gas spikes
-
-📡 JSON‑RPC API
-	•	web3_clientVersion
-	•	eth_blockNumber
-	•	eth_getBalance
-	•	eth_getTransactionCount
-	•	eth_sendRawTransaction
-	•	eth_getTransactionByHash
-	•	eth_getTransactionReceipt
-	•	Optional stubs: eth_call, eth_getCode, eth_estimateGas
-	•	Ensure RPC conforms to standard format (hex pads, ids)
-
-📄 Documentation
-	•	README with build/run instructions
-	•	API reference for JSON‑RPC methods
-	•	Design docs for consensus & networking
-	•	Developer onboarding documentation
-	•	On‑chain governance & testing guidelines
-
-🪩 Testnet Launch
-
-Pre‑Launch
-	•	Testnet validator configuration defined
-	•	Bootstrap nodes deployed
-	•	Faucet setup for test tokens
-	•	Stress tests on testnet
-	•	Validators run independently
-	•	Monitor sync stability
-
-Run‑Time Monitoring
-	•	Metrics collection & export
-	•	Alerts (latency, block lag, failed sync)
-	•	Logging aggregation
-	•	Chain health dashboards
-
-🏁 Mainnet Preparation
-
-Pre‑Deployment
-	•	Full security audit completed
-	•	Penetration tests passed
-	•	Load testing with expected tx volume
-	•	Bug bounty program open
-
-Deployment
-	•	Mainnet bootstrap plan
-	•	Validator onboarding docs published
-	•	Key management & recovery (HSM/KMS)
-	•	Final smoke tests post‑deploy
-
-Post‑Deploy
-	•	48‑hour monitoring window
-	•	Incident response plan live
-	•	Performance baselines established
-	•	Anti‑fraud & alerts in production
-
-⸻
-
-📌 Notes
-	•	This checklist combines development, networking, consensus, testing, and deployment readiness into a coherent GitHub‑friendly task list you can track in issues or projects.
-	•	Using GitHub task lists with CI (GitHub Actions) helps ensure that PRs cannot be merged until all relevant checks are green.
-	•	A template like this guides developers and operations teams through launch readiness and deployment phases.  ￼
+# Optional: add tests if present
+if(EXISTS "${PROJECT_SOURCE_DIR}/tests")
+    enable_testing()
+    add_subdirectory(tests)
+endif()
