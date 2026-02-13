@@ -1,27 +1,27 @@
 #include "transaction.h"
-#include "crypto.h"          // doubleSHA256
-#include "evm/execute.h"
+#include "crypto/digest.h"          // keccak256
+#include "evm/tx.h"
+#include "blockchain.h"
 #include "evm/storage.h"
-#include "blockchain.h"      // Blockchain access for fees & state
+#include "evm/execute.h"
+
+#include <evmc/evmc.hpp>
 #include <vector>
-#include <cstdint>
-#include <string>
 #include <cstring>
 #include <iostream>
-#include <evmc/evmc.hpp>
 
 // -------------------------------
-// Helpers for Serialization
+// Helpers for Little‑Endian Writes
 // -------------------------------
 
-static void writeUInt32LE(std::vector<unsigned char>& buf, uint32_t value) {
+static void writeUInt32LE(std::vector<uint8_t>& buf, uint32_t value) {
     buf.push_back(value & 0xff);
     buf.push_back((value >> 8) & 0xff);
     buf.push_back((value >> 16) & 0xff);
     buf.push_back((value >> 24) & 0xff);
 }
 
-static void writeUInt64LE(std::vector<unsigned char>& buf, uint64_t value) {
+static void writeUInt64LE(std::vector<uint8_t>& buf, uint64_t value) {
     for (int i = 0; i < 8; ++i) {
         buf.push_back(value & 0xff);
         value >>= 8;
@@ -29,46 +29,50 @@ static void writeUInt64LE(std::vector<unsigned char>& buf, uint64_t value) {
 }
 
 // -------------------------------
-// Serialize UTXO Transaction
+// UTXO Transaction Serialization
 // -------------------------------
 
-static void serializeUTXO(const Transaction& tx, std::vector<unsigned char>& buf) {
-    writeUInt32LE(buf, tx.version);
-    buf.push_back(static_cast<unsigned char>(tx.inputs.size()));
+static void serializeUTXO(const Transaction& tx, std::vector<uint8_t>& out) {
+    writeUInt32LE(out, tx.version);
+    out.push_back(static_cast<uint8_t>(tx.inputs.size()));
 
     for (const auto& in : tx.inputs) {
-        for (size_t i = 0; i < 32 && i < in.prevTxHash.size(); ++i)
-            buf.push_back(static_cast<unsigned char>(in.prevTxHash[i]));
-        writeUInt32LE(buf, in.outputIndex);
-        buf.push_back(0); // scriptSig length
-        writeUInt32LE(buf, 0xffffffff);
+        out.insert(out.end(), in.prevTxHash.begin(), in.prevTxHash.end());
+        writeUInt32LE(out, in.outputIndex);
+        writeUInt32LE(out, in.sequence);
     }
 
-    buf.push_back(static_cast<unsigned char>(tx.outputs.size()));
-    for (const auto& out : tx.outputs) {
-        writeUInt64LE(buf, out.value);
-        buf.push_back(0); // scriptPubKey length
+    out.push_back(static_cast<uint8_t>(tx.outputs.size()));
+    for (const auto& o : tx.outputs) {
+        writeUInt64LE(out, o.value);
+        // scriptPubKey placeholder
+        out.push_back(0);
     }
 
-    writeUInt32LE(buf, tx.lockTime);
+    writeUInt32LE(out, tx.lockTime);
 }
 
 // -------------------------------
-// Serialize EVM Transaction
+// EVM Transaction Serialization
 // -------------------------------
 
-static void serializeEVM(const Transaction& tx, std::vector<unsigned char>& buf) {
-    writeUInt32LE(buf, tx.version);
-    buf.push_back(static_cast<unsigned char>(tx.type));
-    buf.insert(buf.end(), tx.fromAddress.begin(), tx.fromAddress.end());
-    buf.insert(buf.end(), tx.toAddress.begin(), tx.toAddress.end());
-    writeUInt64LE(buf, tx.gasLimit);
-    writeUInt64LE(buf, tx.maxFeePerGas);
-    writeUInt64LE(buf, tx.maxPriorityFeePerGas);
+static void serializeEVM(const Transaction& tx, std::vector<uint8_t>& out) {
+    evm::Tx signedTx;
+    signedTx.nonce      = tx.evmNonce;
+    signedTx.gasPrice   = tx.maxFeePerGas;
+    signedTx.gasLimit   = tx.gasLimit;
+    signedTx.value      = tx.value;
+    signedTx.to         = tx.toAddress;
+    signedTx.data       = tx.data;
 
-    uint32_t dataLen = static_cast<uint32_t>(tx.data.size());
-    writeUInt32LE(buf, dataLen);
-    buf.insert(buf.end(), tx.data.begin(), tx.data.end());
+    // RLP serialization happens in real signing function
+    // Placeholder insert raw
+    out.insert(out.end(), tx.toAddress.begin(), tx.toAddress.end());
+    writeUInt64LE(out, signedTx.value);
+    writeUInt64LE(out, signedTx.gasPrice);
+    writeUInt64LE(out, signedTx.gasLimit);
+
+    out.insert(out.end(), signedTx.data.begin(), signedTx.data.end());
 }
 
 // -------------------------------
@@ -76,15 +80,19 @@ static void serializeEVM(const Transaction& tx, std::vector<unsigned char>& buf)
 // -------------------------------
 
 void Transaction::calculateHash() {
-    std::vector<unsigned char> serialized;
+    std::vector<uint8_t> raw;
 
     if (type == TxType::Standard) {
-        serializeUTXO(*this, serialized);
+        serializeUTXO(*this, raw);
+        // UTXO uses double SHA‑256
+        txHash = doubleSHA256(raw);
     } else {
-        serializeEVM(*this, serialized);
+        // EVM transaction uses KECCAK‑256 of RLP
+        serializeEVM(*this, raw);
+        uint8_t hashOut[32];
+        keccak(raw.data(), raw.size(), hashOut, 32);
+        txHash.assign(hashOut, hashOut + 32);
     }
-
-    txHash = doubleSHA256(std::string(serialized.begin(), serialized.end()));
 }
 
 // -------------------------------
@@ -92,148 +100,107 @@ void Transaction::calculateHash() {
 // -------------------------------
 
 static bool processStandardTx(const Transaction& tx, Blockchain& chain) {
-    // Placeholder for real UTXO logic
-    std::cout << "[TX] Standard UTXO transaction processed: " << tx.txHash << std::endl;
+    std::cout << "[TX] Standard UTXO processed: " << tx.txHash << std::endl;
     return true;
 }
 
 // -------------------------------
-// CONTRACT DEPLOY
+// EVM Contract Deploy
 // -------------------------------
 
-static bool processContractDeploy(const Transaction& tx, Blockchain& chain, const std::string& minerAddress) {
-    EVMStorage storage("rocksdb_evm_state");
+static bool processContractDeploy(const Transaction& tx, Blockchain& chain, const std::string& minerAddr) {
+    EVMStorage storage(chain.getEVMStatePath());
 
-    // Deterministic contract address
     std::string seed = tx.fromAddress + tx.txHash;
-    std::string contractAddress = doubleSHA256(seed);
+    std::vector<uint8_t> bytecode = tx.data;
+    std::string contractAddress = bytesToHex(keccak256(seed));
 
-    storage.putContractCode(contractAddress, tx.data);
+    storage.putContractCode(contractAddress, bytecode);
 
-    std::cout << "[EVM] Contract deployed at: " << contractAddress << std::endl;
+    std::cout << "[EVM] Deployed at: " << contractAddress << std::endl;
     return true;
 }
 
 // -------------------------------
-// CONTRACT CALL + FEE DEDUCTION
+// EVM Contract Call + Fees
 // -------------------------------
 
-static bool processContractCall(const Transaction& tx, Blockchain& chain, const std::string& minerAddress) {
-    EVMStorage storage("rocksdb_evm_state");
+static bool processContractCall(const Transaction& tx, Blockchain& chain, const std::string& minerAddr) {
+    EVMStorage storage(chain.getEVMStatePath());
+    auto bytecode = storage.getContractCode(tx.toAddress);
 
-    // Load the contract bytecode
-    std::vector<uint8_t> bytecode = storage.getContractCode(tx.toAddress);
     if (bytecode.empty()) {
-        std::cerr << "[EVM] Contract not found at: " << tx.toAddress << std::endl;
+        std::cerr << "[EVM] Contract not found: " << tx.toAddress << std::endl;
         return false;
     }
 
-    // Convert sender/to address to evmc_address
     evmc_address from{};
     evmc_address to{};
-    std::memcpy(from.bytes, tx.fromAddress.data(), std::min(tx.fromAddress.size(), sizeof(from.bytes)));
-    std::memcpy(to.bytes, tx.toAddress.data(), std::min(tx.toAddress.size(), sizeof(to.bytes)));
+    std::memcpy(from.bytes, tx.fromAddress.data(), from.bytes.size());
+    std::memcpy(to.bytes,   tx.toAddress.data(),   to.bytes.size());
 
-    // Execute the contract
-    evmc_result result = EVMExecutor::executeContract(
-        storage,
-        bytecode,
-        tx.data,
-        tx.gasLimit,
-        to,
-        from,
-        chain,
-        minerAddress
+    auto result = EVMExecutor::executeContract(
+        storage, bytecode, tx.data, tx.gasLimit, to, from, chain, minerAddr
     );
 
-    // Calculate gas used
     uint64_t gasUsed = tx.gasLimit - result.gas_left;
-
-    // Get base fee from current chain state
     uint64_t baseFee = chain.getCurrentBaseFee();
+    uint64_t tip     = tx.maxPriorityFeePerGas;
+    uint64_t effPrice = std::min(tx.maxFeePerGas, baseFee + tip);
 
-    // Determine tip and ensure it does not exceed maxFee
-    uint64_t tip = tx.maxPriorityFeePerGas;
-    uint64_t maxFee = tx.maxFeePerGas;
-    uint64_t effPrice = std::min(maxFee, baseFee + tip);
+    uint64_t totalFee = gasUsed * effPrice;
 
-    // Compute fee amounts
-    uint64_t baseFeeTotal  = gasUsed * baseFee;
-    uint64_t priorityTotal = gasUsed * tip;
-    uint64_t totalFee      = gasUsed * effPrice;
-
-    // Deduct fees from sender
-    uint64_t senderBal = chain.getBalance(tx.fromAddress);
-    if (senderBal < totalFee) {
+    uint64_t senderBalance = chain.getBalance(tx.fromAddress);
+    if (senderBalance < totalFee) {
         std::cerr << "[FEE] Insufficient balance: needed "
-                  << totalFee << ", available "
-                  << senderBal << std::endl;
+                  << totalFee << ", available " << senderBalance << std::endl;
         return false;
     }
-    chain.setBalance(tx.fromAddress, senderBal - totalFee);
 
-    // Pay miner the priority fee
-    uint64_t minerBal = chain.getBalance(minerAddress);
-    chain.setBalance(minerAddress, minerBal + priorityTotal);
-
-    // Burn base fee or send it to protocol treasury
-    chain.burnBaseFees(baseFeeTotal);
-
-    // Update gas used for consensus
+    chain.setBalance(tx.fromAddress, senderBalance - totalFee);
+    chain.addBalance(minerAddr, gasUsed * tip);
+    chain.burnBaseFees(gasUsed * baseFee);
     chain.currentBlock.gasUsed += gasUsed;
 
-    std::cout << "[FEE] Charged fees. GasUsed=" << gasUsed
-              << ", BaseFee=" << baseFeeTotal
-              << ", Priority=" << priorityTotal
+    std::cout << "[FEE] Charged: GasUsed=" << gasUsed
               << ", Total=" << totalFee << std::endl;
 
     return (result.status_code == EVMC_SUCCESS);
 }
 
 // -------------------------------
-// TRANSACTION DISPATCH
+// Dispatch
 // -------------------------------
 
 bool processTransaction(const Transaction& tx, Blockchain& chain, const std::string& minerAddress) {
     switch (tx.type) {
         case TxType::Standard:
             return processStandardTx(tx, chain);
-
         case TxType::ContractDeploy:
             return processContractDeploy(tx, chain, minerAddress);
-
         case TxType::ContractCall:
             return processContractCall(tx, chain, minerAddress);
-
         default:
-            std::cerr << "[TX] Unknown transaction type" << std::endl;
+            std::cerr << "[TX] Unknown type" << std::endl;
             return false;
     }
 }
 
 // -------------------------------
-// Debug Output
+// Debug Printer
 // -------------------------------
 
 void printTransaction(const Transaction& tx) {
     std::cout << "Tx Hash: " << tx.txHash << std::endl;
-    std::cout << "Type: ";
-    switch (tx.type) {
-        case TxType::Standard:
-            std::cout << "Standard UTXO"; break;
-        case TxType::ContractDeploy:
-            std::cout << "Contract Deploy"; break;
-        case TxType::ContractCall:
-            std::cout << "Contract Call"; break;
-    }
+    std::cout << "Type: " << static_cast<int>(tx.type);
 
     if (tx.type != TxType::Standard) {
-        std::cout << " | From: " << tx.fromAddress
-                  << " | To: " << tx.toAddress
-                  << " | GasLimit: " << tx.gasLimit
-                  << " | MaxFeePerGas: " << tx.maxFeePerGas
-                  << " | MaxPriorityFeePerGas: " << tx.maxPriorityFeePerGas
-                  << " | Data size: " << tx.data.size();
+        std::cout << " From=" << tx.fromAddress
+                  << " To=" << tx.toAddress
+                  << " GasLimit=" << tx.gasLimit
+                  << " MaxFee=" << tx.maxFeePerGas
+                  << " PriorityFee=" << tx.maxPriorityFeePerGas
+                  << " DataSize=" << tx.data.size();
     }
     std::cout << std::endl;
 }
