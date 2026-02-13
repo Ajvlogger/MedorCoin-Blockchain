@@ -1,4 +1,4 @@
-#include "serialization.h"
+#include "net/serialization.h"
 
 nlohmann::json serializeBlock(const Block &block) {
     nlohmann::json j;
@@ -6,11 +6,12 @@ nlohmann::json serializeBlock(const Block &block) {
     j["timestamp"] = block.timestamp;
     j["hash"] = block.hash;
     j["signature"] = block.signature;
-    // Add transactions
+
     j["txs"] = nlohmann::json::array();
     for (auto &tx : block.transactions) {
         j["txs"].push_back(serializeTx(tx));
     }
+
     return j;
 }
 
@@ -20,9 +21,11 @@ Block deserializeBlock(const nlohmann::json &j) {
     block.timestamp = j["timestamp"];
     block.hash = j["hash"];
     block.signature = j["signature"];
+
     for (auto &t : j["txs"]) {
         block.transactions.push_back(deserializeTx(t));
     }
+
     return block;
 }
 
@@ -35,6 +38,7 @@ nlohmann::json serializeTx(const Transaction &tx) {
     j["maxFee"] = tx.maxFeePerGas;
     j["priority"] = tx.maxPriorityFeePerGas;
     j["data"] = nlohmann::json::binary(tx.data);
+
     return j;
 }
 
@@ -47,5 +51,6 @@ Transaction deserializeTx(const nlohmann::json &j) {
     tx.maxFeePerGas = j["maxFee"];
     tx.maxPriorityFeePerGas = j["priority"];
     tx.data = j["data"].get<std::vector<uint8_t>>();
+
     return tx;
 }
