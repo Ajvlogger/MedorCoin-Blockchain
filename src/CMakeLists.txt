@@ -5,6 +5,7 @@ project(MedorCoinNode LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Source files
 set(SOURCE_FILES
     main.cpp
     blockchain.cpp
@@ -22,18 +23,19 @@ set(SOURCE_FILES
 
 add_executable(MedorCoinNode ${SOURCE_FILES})
 
+# Include paths
 target_include_directories(MedorCoinNode
-    PUBLIC
-        ${PROJECT_SOURCE_DIR}
-        ${PROJECT_SOURCE_DIR}/net
-        ${PROJECT_SOURCE_DIR}/crypto
-        ${PROJECT_SOURCE_DIR}/../include
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/net
+        ${CMAKE_CURRENT_SOURCE_DIR}/crypto
+        ${CMAKE_CURRENT_SOURCE_DIR}/../include
 )
 
-# -------------------------------------------------
-# LevelDB using pkg-config
-# -------------------------------------------------
+# pkg-config required
 find_package(PkgConfig REQUIRED)
+
+# LevelDB via pkg-config
 pkg_check_modules(LEVELDB REQUIRED leveldb)
 
 target_include_directories(MedorCoinNode
@@ -46,9 +48,7 @@ target_link_libraries(MedorCoinNode
         ${LEVELDB_LIBRARIES}
 )
 
-# -------------------------------------------------
 # OpenSSL
-# -------------------------------------------------
 find_package(OpenSSL REQUIRED)
 target_link_libraries(MedorCoinNode
     PRIVATE
@@ -56,9 +56,7 @@ target_link_libraries(MedorCoinNode
         OpenSSL::Crypto
 )
 
-# -------------------------------------------------
-# secp256k1 using pkg-config
-# -------------------------------------------------
+# secp256k1 via pkg-config
 pkg_check_modules(SECP256K1 REQUIRED libsecp256k1)
 
 target_include_directories(MedorCoinNode
@@ -70,3 +68,8 @@ target_link_libraries(MedorCoinNode
     PRIVATE
         ${SECP256K1_LIBRARIES}
 )
+
+# POSIX networking support
+if (UNIX)
+    target_link_libraries(MedorCoinNode PRIVATE pthread)
+endif()
