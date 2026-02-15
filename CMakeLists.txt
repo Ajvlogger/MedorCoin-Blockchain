@@ -1,71 +1,20 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(MedorCoinNode LANGUAGES CXX)
+project(MedorCoin LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-# -----------------------------
-# Source Files
-# -----------------------------
-set(SOURCES
-    main.cpp
-    blockchain.cpp
-    transaction.cpp
-    utxo.cpp
-    crypto/keystore.cpp
-    crypto/evm_sign.cpp
-    crypto/rlp.cpp
-    crypto/signature.cpp
-    net/net_manager.cpp
-    net/sync_manager.cpp
-    net/serialization.cpp
-    blockchain_fork.cpp
+# Sources
+file(GLOB_RECURSE SOURCES src/*.cpp)
+
+add_executable(medorcoin ${SOURCES})
+
+target_include_directories(medorcoin PRIVATE
+    ${PROJECT_SOURCE_DIR}/src
 )
 
-add_executable(MedorCoinNode ${SOURCES})
-
-# -----------------------------
-# Include Directories
-# -----------------------------
-target_include_directories(MedorCoinNode
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/net
-        ${CMAKE_CURRENT_SOURCE_DIR}/crypto
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-# -----------------------------
-# pkg-config (Required)
-# -----------------------------
-find_package(PkgConfig REQUIRED)
-
-# -----------------------------
-# LevelDB (via pkg-config ONLY)
-# -----------------------------
-pkg_check_modules(LEVELDB REQUIRED leveldb)
-
-target_include_directories(MedorCoinNode PRIVATE ${LEVELDB_INCLUDE_DIRS})
-target_link_libraries(MedorCoinNode PRIVATE ${LEVELDB_LIBRARIES})
-
-# -----------------------------
-# OpenSSL
-# -----------------------------
-find_package(OpenSSL REQUIRED)
-target_link_libraries(MedorCoinNode PRIVATE OpenSSL::SSL OpenSSL::Crypto)
-
-# -----------------------------
-# secp256k1
-# -----------------------------
-pkg_check_modules(SECP256K1 REQUIRED libsecp256k1)
-
-target_include_directories(MedorCoinNode PRIVATE ${SECP256K1_INCLUDE_DIRS})
-target_link_libraries(MedorCoinNode PRIVATE ${SECP256K1_LIBRARIES})
-
-# -----------------------------
-# POSIX networking (IP support)
-# -----------------------------
-if(UNIX)
-    target_link_libraries(MedorCoinNode PRIVATE pthread)
-endif()
+# pthread (needed for Linux / CI)
+find_package(Threads REQUIRED)
+target_link_libraries(medorcoin PRIVATE Threads::Threads)
