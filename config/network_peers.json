@@ -2,7 +2,7 @@
   "_comment": "MedorCoin Mainnet Network Peers Configuration v1.0.0 -- matches net_manager.cpp constants",
 
   "network": "mainnet",
-  "chainId": 1,
+  "chainId": 2757,
   "version": "1.0.0",
   "protocolVersion": 1,
   "minSupportedProtocolVersion": 1,
