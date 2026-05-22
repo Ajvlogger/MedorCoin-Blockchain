@@ -4,7 +4,7 @@
   "_docs": "https://medorcoin.io/docs/genesis",
 
   "version": 1,
-  "chainId": 1337,
+  "chainId": 2757,
   "_chainId_note": "Must match node_config.json chain_id exactly — verified on startup",
 
   "network": "mainnet",
