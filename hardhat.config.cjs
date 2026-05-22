@@ -28,7 +28,7 @@ module.exports = {
     medorcoin: {
       url: NODE_RPC,
       accounts: [PRIVATE_KEY],
-      chainId: 60808, 
+      chainId: 2757, 
       gas: "auto",
       gasPrice: "auto",
       timeout: 120000,
