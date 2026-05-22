@@ -69,7 +69,7 @@ miners within ±1/1024 per block, bounded by the hard maximum.
 | Field                  | Type     | Size     | Description                    |
 |------------------------|----------|----------|--------------------------------|
 | txHash                 | bytes32  | 32 bytes | Keccak256 hash of transaction  |
-| chainId                | uint64   | 8 bytes  | Chain ID (1337 for mainnet)    |
+| chainId                | uint64   | 8 bytes  | Chain ID (2757 for mainnet)    |
 | nonce                  | uint64   | 8 bytes  | Sender nonce                   |
 | toAddress              | bytes20  | 20 bytes | Recipient address              |
 | value                  | uint64   | 8 bytes  | Amount in base units           |
