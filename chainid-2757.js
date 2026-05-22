@@ -1,23 +1,27 @@
 {
-  "name": "Medorcoin Mainnet",
+  "name": {
+    "name": "Medorcoin Mainnet",
+    "history": [
+      {
+        "url": "https://medorcoin.org",
+        "name": "Medorcoin Mainnet"
+      }
+    ]
+  },
   "chain": "MEDOR",
   "rpc": [
-    "http://172.235.50.31:3000"
+    "https://rpc.medorcoin.org"
   ],
   "faucets": [],
   "nativeCurrency": {
     "name": "Medorcoin",
-    "symbol": "MEDOR",
+    "symbol": "MDC",
     "decimals": 18
   },
-  "features": [
-    { "name": "EIP155" }
-  ],
   "infoURL": "https://medorcoin.org",
   "shortName": "medor",
   "chainId": 2757,
   "networkId": 2757,
-  "icon": "medorcoin",
   "explorers": [
     {
       "name": "MedorExplorer",
