@@ -2,7 +2,7 @@
 
 Version: 1.1.0
 Network: Mainnet
-Chain ID: 1337
+Chain ID: 2757
 Repository: MedorCoin-Blockchain
 
 ---
