@@ -6,7 +6,7 @@
 #   instance   — hostname or node identifier
 #   region     — deployment region (us-east, eu-west, ap-south)
 #   network    — mainnet | testnet | devnet
-#   chain_id   — 1337 | 1338 | 1339
+#   chain_id   — 2857
 #   version    — node software version (e.g. 1.0.0)
 #
 # Counters are monotonically increasing and never reset except on node restart.
