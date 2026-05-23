@@ -6,7 +6,7 @@
     "id": "medor-node-001",
     "version": "1.0.0",
     "network": "mainnet",
-    "chain_id": 1337,
+    "chain_id": 2757,
     "data_dir": "./data",
     "log_level": "info",
     "log_dir": "./logs",
