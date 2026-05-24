@@ -54,7 +54,7 @@
     <!-- RIGHT-SIDE LINKS ON ONE LINE -->
     <div style="font-size:12px;display:flex;gap:12px;align-items:center;">
       <a href="create-wallet.html" style="color:white;text-decoration:none;">Create Wallet</a> |
-      <a href="connect-wallet.html" style="color:white;text-decoration:none;">Connect Wallet</a> |
+      <a href="javascript:void(0);" onclick="connectWallet()" style="color:white;text-decoration:none;background:#10b981;padding:4px 8px;border-radius:4px;">Connect Wallet</a> |
       <a href="signup.html" style="color:white;text-decoration:none;">SignUp</a> |
       <a href="login.html" style="color:white;text-decoration:none;">Login</a>
     </div>
@@ -117,7 +117,7 @@
     </a>
 
     <!-- For Developers  -->
-    <a class="tile" href="developers.html" style="background:#87CEEB;color:#333;border:1px solid var(--border);border-radius:14px;padding:12px;min-height:96px;display:flex;flex-direction:column;gap:8px;justify-content:center;">
+    <a class="tile" hrefu="developers.html" style="background:#87CEEB;color:#333;border:1px solid var(--border);border-radius:14px;padding:12px;min-height:96px;display:flex;flex-direction:column;gap:8px;justify-content:center;">
       <div class="icon ic-slate" aria-hidden="true">👩‍💻</div>
       <b>For Developers</b>
       <span class="muted">Docs & SDKs</span>
@@ -246,31 +246,83 @@
     Trade responsibly. The crypto world is volatile; you are responsible for your own decisions on this platform. MedorCoin and its partners/employees are not liable for any decisions. You must be 18+ years old to use this platform.
   </p>
 </footer>
-<!-- THE ENGINE: Copy this right before </body> -->
-<script src="https://jsdelivr.net"></script>
+<!-- THE ENGINE: CORRECTED & CONNECTED -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/web3/4.1.1/web3.min.js"></script>
 <script>
-  // Replace this with your actual stable RPC URL
-  const RPC_URL = "http://172.235.50.31:3000"; 
-  const web3 = new Web3(new Web3.providers.HttpProvider(RPC_URL));
+  // 1. Configuration
+  const CHAIN_ID_DECIMAL = 2757;
+  const CHAIN_ID_HEX = '0x' + CHAIN_ID_DECIMAL.toString(16); // Converts 2757 to 0xac5
+  const RPC_URL = "https://rpc.medorcoin.org"; 
+  const statusEl = document.getElementById('walletStatus');
 
-  async function connectBlockchain() {
-    const statusEl = document.getElementById('walletStatus');
+  // 2. Initialize Web3
+  let web3;
+  if (window.ethereum) {
+      web3 = new Web3(window.ethereum);
+  } else {
+      web3 = new Web3(new Web3.providers.HttpProvider(RPC_URL));
+  }
+
+  // 3. Check Backend Status (Block Height)
+  async function checkNodeStatus() {
     try {
-      // Test the connection
       const block = await web3.eth.getBlockNumber();
-      statusEl.innerText = "🟢 MedorCoin Active: Block #" + block;
+      statusEl.innerText = "🟢 MedorCoin Active: Block #" + block.toString();
       statusEl.style.display = "block";
-      console.log("Wiring Successful!");
     } catch (err) {
-      statusEl.innerText = "🔴 Connection Error";
+      console.error("RPC Error:", err);
+      statusEl.innerText = "🔴 RPC Offline or Connecting...";
       statusEl.style.display = "block";
-      console.error("Backend wiring failed:", err);
     }
   }
 
-  // Run the connection check when the page loads
-  window.onload = connectBlockchain;
+  // 4. Connect Wallet Function
+  async function connectWallet() {
+    if (!window.ethereum) {
+      alert("MetaMask not found. Please install the extension.");
+      return;
+    }
+
+    try {
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: CHAIN_ID_HEX }],
+        });
+      } catch (switchError) {
+        if (switchError.code === 4902) {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: CHAIN_ID_HEX,
+              chainName: 'Medorcoin Mainnet',
+              nativeCurrency: { name: 'Medorcoin', symbol: 'MDC', decimals: 18 },
+              rpcUrls: [RPC_URL],
+              blockExplorerUrls: ['https://medorcoin.org/blockchain.html']
+            }],
+          });
+        } else {
+          throw switchError;
+        }
+      }
+      
+      const shortAddr = accounts[0].substring(0,6) + "..." + accounts[0].substring(38);
+      statusEl.innerText = "Connected: " + shortAddr;
+      statusEl.style.background = "#10b981"; 
+      
+    } catch (error) {
+      console.error("Connection Error:", error);
+      alert("Failed to connect: " + error.message);
+    }
+  }
+
+  window.onload = checkNodeStatus;
 </script>
+
+</body>
+</html>
 
 </body>
 </html>
