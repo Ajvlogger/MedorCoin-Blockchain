@@ -46,86 +46,93 @@
 </div>
 
 <script>
+    let csrfToken = null;
+    
+    // Connects exactly to Port 5000 as configured inside your node.cjs architecture
     const API_BASE = window.location.origin.includes('github.dev') 
-        ? "https://fuzzy-space-trout-v6q6wxv4j5j73q96-3000.app.github.dev" 
-        : window.location.origin;
+        ? "https://fuzzy-space-trout-v6q6wxv4j5j73q96-5000.app.github.dev" 
+        : "https://medorcoin.org";
 
-    window.addEventListener('DOMContentLoaded', () => {
-        const signupForm = document.getElementById('signupForm');
-        if (!signupForm) return;
-
-        signupForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
+    // Initialize Security Token handshake Context
+    async function initSecurity() {
+        try {
+            // credentials: include is mandatory for doubleCsrf to set its monitoring session cookies
+            const res = await fetch(`${API_BASE}/api/csrf-token`, { credentials: 'include' });
+            if (!res.ok) throw new Error("Handshake security checkpoint refused connection.");
+            const data = await res.json();
+            csrfToken = data.csrfToken;
+        } catch (e) {
+            console.error("Security baseline configuration connection fault:", e);
             const errDiv = document.getElementById('errMsg');
-            const submitBtn = document.getElementById('submitBtn');
-            if (errDiv) errDiv.style.display = 'none';
-
-            if (typeof hcaptcha === 'undefined') {
-                if (errDiv) {
-                    errDiv.innerText = "hCaptcha library missing. Refresh and try again.";
-                    errDiv.style.display = 'block';
-                }
-                return;
+            if (errDiv) {
+                errDiv.innerText = "Security Handshake verification initialization failed. Please reload.";
+                errDiv.style.display = 'block';
             }
+        }
+    }
 
-            const captchaToken = hcaptcha.getResponse();
-            if (!captchaToken) {
-                if (errDiv) {
-                    errDiv.innerText = "Please complete the Captcha validation puzzle.";
-                    errDiv.style.display = 'block';
-                }
-                return;
+    window.addEventListener('DOMContentLoaded', initSecurity);
+
+    document.getElementById('signupForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const errDiv = document.getElementById('errMsg');
+        const submitBtn = document.getElementById('submitBtn');
+        if (errDiv) errDiv.style.display = 'none';
+
+        const captchaToken = hcaptcha.getResponse();
+        if (!captchaToken) {
+            if (errDiv) {
+                errDiv.innerText = "Please finalize the anti-bot puzzle verification.";
+                errDiv.style.display = 'block';
             }
+            return;
+        }
 
-            const payload = {
-                username: document.getElementById('username').value.trim(),
-                password: document.getElementById('password').value,
-                captchaToken: captchaToken
-            };
+        // Packages all four required body strings expected by the sqlite write task sequence
+        const payload = {
+            username: document.getElementById('username').value.trim(),
+            email: document.getElementById('email').value.trim(),
+            password: document.getElementById('password').value,
+            captchaToken: captchaToken
+        };
 
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Processing Profile Activation...";
+        }
+
+        try {
+            const response = await fetch(`${API_BASE}/api/signup`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken || ''
+                },
+                credentials: 'include', // Mandated requirement to forward the cross-origin tracking identifiers
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (response.status === 201 && data.success) {
+                // Securely store data contexts across transaction view redirection routes
+                sessionStorage.setItem('medor_claim_id', data.claimId);
+                window.location.href = `verify.html?address=${encodeURIComponent(data.address)}`;
+            } else {
+                throw new Error(data.error || "Server validation error encountered.");
+            }
+        } catch (err) {
+            if (errDiv) {
+                errDiv.innerText = err.message || "Network exception fault. Verify core initialization pipeline states.";
+                errDiv.style.display = 'block';
+            }
             if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.innerText = "Processing Registration...";
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Register Account";
             }
-
-            try {
-                const response = await fetch(`${API_BASE}/api/signup`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    if (data.mnemonic) {
-                        sessionStorage.setItem('medor_mnemonic', data.mnemonic);
-                    }
-                    window.location.href = `verify.html?address=${encodeURIComponent(data.address)}`;
-                } else {
-                    if (errDiv) {
-                        errDiv.innerText = data.error || "Signup request failed.";
-                        errDiv.style.display = 'block';
-                    }
-                    if (submitBtn) {
-                        submitBtn.disabled = false;
-                        submitBtn.innerText = "Register Account";
-                    }
-                    hcaptcha.reset(); 
-                }
-            } catch (err) {
-                if (errDiv) {
-                    errDiv.innerText = "Network connection failed. Verify your backend server is running.";
-                    errDiv.style.display = 'block';
-                }
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerText = "Register Account";
-                }
-                hcaptcha.reset();
-            }
-        });
+            if (typeof hcaptcha !== 'undefined') hcaptcha.reset();
+        }
     });
 </script>
 </body>
