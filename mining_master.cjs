@@ -44,27 +44,42 @@ if (cluster.isMaster) {
         consecutiveFallbacks: 0 
     };
 
-    // --- FRONTEND HTTP + WEBSOCKET GATEWAY ---
     function startFrontendGateway() {
-        const server = http.createServer((req, res) => {
-            let targetFile = req.url === '/' ? 'miners.html' : req.url;
-            let filePath = path.join(__dirname, targetFile);
-            
-            fs.readFile(filePath, (err, content) => {
-                if (err) {
-                    res.writeHead(404, { 'Content-Type': 'text/plain' });
-                    res.end('File Not Found');
-                } else {
-                    let contentType = 'text/html';
-                    if (filePath.endsWith('.js')) contentType = 'application/javascript';
-                    if (filePath.endsWith('.css')) contentType = 'text/css';
-                    
-                    res.writeHead(200, { 'Content-Type': contentType });
-                    res.end(content, 'utf-8');
-                }
-            });
-        });
+    const server = http.createServer((req, res) => {
+        
+        // 1. Handle CSRF Token Request (Placed at the very top)
+        if (req.url === '/csrf-token' && req.method === 'GET') {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ csrfToken: "your_generated_token_here" }));
+        }
 
+        // 2. Handle Registration Form Data (Placed at the very top)
+        if (req.url === '/signup' && req.method === 'POST') {
+            // Process your signup logic here
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ success: true, claimId: "abc", address: "xyz" }));
+        }
+
+        // Your original file-serving logic runs immediately after if the URLs don't match
+        let targetFile = req.url === '/' ? 'miners.html' : req.url;
+        let filePath = path.join(__dirname, targetFile);
+        
+        fs.readFile(filePath, (err, content) => {
+            if (err) {
+                res.writeHead(404, { 'Content-Type': 'text/plain' });
+                res.end('File Not Found');
+            } else {
+                let contentType = 'text/html';
+                if (filePath.endsWith('.js')) contentType = 'application/javascript';
+                if (filePath.endsWith('.css')) contentType = 'text/css';
+                
+                res.writeHead(200, { 'Content-Type': contentType });
+                res.end(content, 'utf-8');
+            }
+        });
+    });
+
+    // The rest of your WebSocket connection management code remains untouched below this line
         webSocketServer = new WebSocket.Server({ server });
         
         webSocketServer.on('connection', (ws) => {
