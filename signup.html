@@ -27,15 +27,15 @@
     <form id="signupForm">
         <div class="form-group">
             <label for="username">Username</label>
-            <input type="text" id="username" name="username" required placeholder="Enter username">
+            <input type="text" id="username" required placeholder="Enter username">
         </div>
         <div class="form-group">
             <label for="email">Email Address</label>
-            <input type="email" id="email" name="email" required placeholder="Enter email address">
+            <input type="email" id="email" required placeholder="Enter email address">
         </div>
         <div class="form-group">
             <label for="password">Password</label>
-            <input type="password" id="password" name="password" required placeholder="Min 12 chars, 1 uppercase, 1 number">
+            <input type="password" id="password" required placeholder="Min 12 chars, 1 uppercase, 1 number">
         </div>
 
         <div class="h-captcha" data-sitekey="YOUR_HCAPTCHA_SITE_KEY"></div>
@@ -46,83 +46,87 @@
 </div>
 
 <script>
-    // Relative positioning ensures queries hit the domain hosting this exact file
-    const API_ROUTE = "/signup";
-    const CSRF_ROUTE = "/csrf-token";
+    const API_BASE = window.location.origin.includes('github.dev') 
+        ? "https://fuzzy-space-trout-v6q6wxv4j5j73q96-3000.app.github.dev" 
+        : window.location.origin;
 
-    let globalSecurityToken = null;
+    window.addEventListener('DOMContentLoaded', () => {
+        const signupForm = document.getElementById('signupForm');
+        if (!signupForm) return;
 
-    async function fetchSecurityContext() {
-        try {
-            const response = await fetch(CSRF_ROUTE);
-            if (!response.ok) throw new Error("Security frame rejected.");
-            const context = await response.json();
-            globalSecurityToken = context.csrfToken;
-        } catch (error) {
-            console.error("Initial pipeline connection issue:", error.message);
-            displayNotification("Security protocol failed to initialize. Please refresh.");
-        }
-    }
+        signupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const errDiv = document.getElementById('errMsg');
+            const submitBtn = document.getElementById('submitBtn');
+            if (errDiv) errDiv.style.display = 'none';
 
-    function displayNotification(message) {
-        const field = document.getElementById('errMsg');
-        if (field) {
-            field.innerText = message;
-            field.style.display = 'block';
-        }
-    }
-
-    document.getElementById('signupForm').addEventListener('submit', async (event) => {
-        event.preventDefault();
-        
-        const errDiv = document.getElementById('errMsg');
-        const actionBtn = document.getElementById('submitBtn');
-        if (errDiv) errDiv.style.display = 'none';
-
-        const captchaVerification = hcaptcha.getResponse();
-        if (!captchaVerification) {
-            displayNotification("Please complete the required verification module.");
-            return;
-        }
-
-        const registrationPayload = {
-            username: document.getElementById('username').value.trim(),
-            email: document.getElementById('email').value.trim(),
-            password: document.getElementById('password').value,
-            captchaToken: captchaVerification
-        };
-
-        actionBtn.disabled = true;
-        actionBtn.innerText = "Processing New Registration...";
-
-        try {
-            const transmission = await fetch(API_ROUTE, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-Token': globalSecurityToken || ''
-                },
-                body: JSON.stringify(registrationPayload)
-            });
-
-            const statusReport = await transmission.json();
-
-            if (transmission.ok && statusReport.success) {
-                sessionStorage.setItem('medor_claim_id', statusReport.claimId);
-                window.location.href = `verify.html?address=${encodeURIComponent(statusReport.address)}`;
-            } else {
-                throw new Error(statusReport.error || "Submission transaction rejected.");
+            if (typeof hcaptcha === 'undefined') {
+                if (errDiv) {
+                    errDiv.innerText = "hCaptcha library missing. Refresh and try again.";
+                    errDiv.style.display = 'block';
+                }
+                return;
             }
-        } catch (executionError) {
-            displayNotification(executionError.message || "Communication fault encountered.");
-            actionBtn.disabled = false;
-            actionBtn.innerText = "Register Account";
-            if (typeof hcaptcha !== 'undefined') hcaptcha.reset();
-        }
-    });
 
-    // Initialize security background channel on asset paint
-    window.addEventListener('DOMContentLoaded', fetchSecurityContext);
+            const captchaToken = hcaptcha.getResponse();
+            if (!captchaToken) {
+                if (errDiv) {
+                    errDiv.innerText = "Please complete the Captcha validation puzzle.";
+                    errDiv.style.display = 'block';
+                }
+                return;
+            }
+
+            const payload = {
+                username: document.getElementById('username').value.trim(),
+                password: document.getElementById('password').value,
+                captchaToken: captchaToken
+            };
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerText = "Processing Registration...";
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/signup`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    if (data.mnemonic) {
+                        sessionStorage.setItem('medor_mnemonic', data.mnemonic);
+                    }
+                    window.location.href = `verify.html?address=${encodeURIComponent(data.address)}`;
+                } else {
+                    if (errDiv) {
+                        errDiv.innerText = data.error || "Signup request failed.";
+                        errDiv.style.display = 'block';
+                    }
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerText = "Register Account";
+                    }
+                    hcaptcha.reset(); 
+                }
+            } catch (err) {
+                if (errDiv) {
+                    errDiv.innerText = "Network connection failed. Verify your backend server is running.";
+                    errDiv.style.display = 'block';
+                }
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = "Register Account";
+                }
+                hcaptcha.reset();
+            }
+        });
+    });
 </script>
 </body>
 </html>
