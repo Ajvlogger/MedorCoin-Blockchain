@@ -2,33 +2,105 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Verify Account | MedorCoin</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #f8fafc; display: flex; justify-content: center; padding: 40px; }
-        .verify-container { width: 420px; background: #f5fddf; border-radius: 10px; padding: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        input { width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 6px; border: 1px solid #999; font-size: 1.1rem; text-align: center; }
-        .verify-btn { width: 100%; padding: 14px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; }
-        .error { color: #d60000; text-align: center; margin-bottom: 10px; font-weight: bold; }
+        body { font-family: "Helvetica Neue", Arial, sans-serif; background: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        .verify-container { width: 100%; max-width: 420px; background: #fff; border-radius: 8px; padding: 35px; border: 1px solid #e7eaf3; box-shadow: 0 0.5rem 1.2rem rgba(189,197,209,.15); }
+        h2 { font-size: 1.5rem; text-align: center; color: #1e2022; margin-bottom: 10px; }
+        .info-txt { font-size: 0.85rem; color: #677788; text-align: center; margin-bottom: 25px; }
+        input { width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 1.2rem; text-align: center; box-sizing: border-box; font-weight: bold; letter-spacing: 2px; }
+        input:focus { outline: none; border-color: #3498db; }
+        .verify-btn { width: 100%; padding: 14px; background: #3498db; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 1rem; }
+        .verify-btn:hover { background: #2980b9; }
+        .verify-btn:disabled { background: #bdc3c7; cursor: not-allowed; }
+        .error { color: #dc3545; text-align: center; margin-bottom: 15px; font-size: 0.85rem; padding: 10px; background: #fff5f5; border-radius: 4px; display: none; }
+        .success { color: #10b981; text-align: center; margin-bottom: 15px; font-size: 0.85rem; padding: 10px; background: #ecfdf5; border-radius: 4px; display: none; }
     </style>
 </head>
 <body>
-<div class="verify-container">
-    <h2>Email Verification</h2>
-    <div id="errorMsg" class="error"></div>
-    <input type="text" id="code" placeholder="6-digit code" maxlength="6">
-    <button class="verify-btn" id="verifyBtn">Verify & Activate</button>
+
+<div class="container">
+    <div class="verify-container">
+        <h2>Email Verification</h2>
+        <p class="info-txt">Enter the 6-digit confirmation code sent to your email to activate your account.</p>
+        
+        <div id="errorMsg" class="error"></div>
+        <div id="successMsg" class="success"></div>
+        
+        <form id="verifyForm">
+            <input type="text" id="code" placeholder="000000" maxlength="6" required pattern="[0-9]{6}">
+            <button type="submit" class="verify-btn" id="verifyBtn">Verify & Activate</button>
+        </form>
+    </div>
 </div>
+
 <script>
-    document.getElementById("verifyBtn").addEventListener("click", async () => {
-        const code = document.getElementById("code").value.trim();
-        const res = await fetch("/api/verify", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({ code })
-        });
-        const data = await res.json();
-        if (data.success) window.location.href = "account.html";
-        else document.getElementById("errorMsg").textContent = data.message || "Invalid Code";
+    // Dynamically captures your active environment hostname matching signup.html
+    const API_BASE = window.location.origin.includes('github.dev') 
+        ? "https://fuzzy-space-trout-v6q6wxv4j5j73q96-3000.app.github.dev" 
+        : window.location.origin;
+
+    document.getElementById("verifyForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        
+        const errDiv = document.getElementById("errorMsg");
+        const successDiv = document.getElementById("successMsg");
+        const btn = document.getElementById("verifyBtn");
+        const codeInput = document.getElementById("code").value.trim();
+
+        errDiv.style.display = "none";
+        successDiv.style.display = "none";
+
+        // Pull critical routing metadata values out of storage/URL strings
+        const claimId = sessionStorage.getItem('medor_claim_id');
+        const urlParams = new URLSearchParams(window.location.search);
+        const address = urlParams.get('address');
+
+        if (!claimId) {
+            errDiv.textContent = "Session invalid. Please go back and sign up again.";
+            errDiv.style.display = "block";
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerText = "Validating...";
+
+        try {
+            const response = await fetch(`${API_BASE}/verify`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    code: codeInput,
+                    claimId: claimId,
+                    address: address 
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                successDiv.textContent = "Account verified successfully! Relocating to dashboard...";
+                successDiv.style.display = "block";
+                
+                // Keep storage tidy by sweeping expired creation claim state values
+                sessionStorage.removeItem('medor_claim_id');
+                
+                setTimeout(() => {
+                    window.location.href = "miners.html";
+                }, 2000);
+            } else {
+                errDiv.textContent = data.error || "Verification failed. Check your code.";
+                errDiv.style.display = "block";
+                btn.disabled = false;
+                btn.innerText = "Verify & Activate";
+            }
+        } catch (err) {
+            errDiv.textContent = "Network error. Make sure your cluster node execution server is live.";
+            errDiv.style.display = "block";
+            btn.disabled = false;
+            btn.innerText = "Verify & Activate";
+        }
     });
 </script>
 </body>
