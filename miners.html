@@ -76,41 +76,43 @@
   </div>
 
 <script>
-    // HARDENED BACKEND CONNECTION
-    const API_BASE = "https://medorcoin.org"; 
-    
-    function toggleMenu() { document.getElementById('navDropdown').classList.toggle('active'); }
+    (function() {
+        // Automatically switches between secure wss:// for production and ws:// for local testing
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        
+        // If your backend runs on a different port (like 8080), change it here. 
+        // If you use a reverse proxy (like Nginx), you can just use window.location.host
+        const socketUrl = `${protocol}//${window.location.hostname}:8080`;
+        
+        const ws = new WebSocket(socketUrl);
+        
+        // Element variable definitions targeting your dashboard UI
+        const heightDisplay = document.getElementById('blockHeightValue') || document.querySelector('.height-text');
+        const hashDisplay = document.getElementById('lastHashValue') || document.querySelector('.hash-text');
+        const diffDisplay = document.getElementById('difficultyValue') || document.querySelector('.diff-text');
+        const hashrateDisplay = document.getElementById('hashrateValue') || document.querySelector('.hashrate-text');
+        const banner = document.getElementById('walletStatus') || document.querySelector('.status-banner');
 
-    // REAL SYNC: Fetches from your 172.235.50.31 cluster
-    async function syncWithNode() {
-        const token = localStorage.getItem('medor_token');
-        if (!token) return;
+        ws.onopen = () => {
+            if (banner) banner.innerHTML = '<span style="color:#10b981">●</span> MedorCoin Cluster Connection Live';
+        };
 
-        try {
-            const res = await fetch(`${API_BASE}/metrics`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            document.getElementById('liveBalance').innerText = data.poolBalance + " MEDOR";
-            document.getElementById('walletBalance').innerText = data.userBalance + " MEDOR";
-            document.getElementById('liveTotalSpeed').innerText = data.networkHashrate;
-        } catch (e) { console.error("Cluster connection failed."); }
-    }
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            
+            if (data.type === 'STATE_SYNC' || data.type === 'STATS_UPDATE') {
+                if (heightDisplay) heightDisplay.innerText = `#${data.height}`;
+                if (diffDisplay) diffDisplay.innerText = `${data.difficulty}`;
+                if (hashrateDisplay) hashrateDisplay.innerText = data.hps !== undefined ? `${data.hps} H/s` : '0 H/s';
+                
+                if (hashDisplay && data.hash) {
+                    hashDisplay.innerText = `${data.hash.substring(0, 10)}...${data.hash.substr(-10)}`;
+                }
+            }
+        };
 
-    // PRODUCTION ACTION: Starts backend work
-    async function sendAction(type) {
-        const token = localStorage.getItem('medor_token');
-        if (!token) { window.location.href='login.html'; return; }
-
-        await fetch(`${API_BASE}/action`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ action: type })
-        });
-        alert("Action sent to Los Angeles V8 Cluster.");
-    }
-
-    setInterval(syncWithNode, 5000);
+        ws.onclose = () => {
+            if (banner) banner.innerHTML = '<span style="color:#ef4444">●</span> Connection Terminated. Reconnecting...';
+        };
+    })();
 </script>
-</body>
-</html>
