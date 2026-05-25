@@ -26,16 +26,16 @@
     <div class="header"><h1>Create Account</h1></div>
     <form id="signupForm">
         <div class="form-group">
-            <label>Username</label>
-            <input type="text" id="username" required placeholder="Enter username">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required placeholder="Enter username">
         </div>
         <div class="form-group">
-            <label>Email Address</label>
-            <input type="email" id="email" required placeholder="Enter email address">
+            <label for="email">Email Address</label>
+            <input type="email" id="email" name="email" required placeholder="Enter email address">
         </div>
         <div class="form-group">
-            <label>Password</label>
-            <input type="password" id="password" required placeholder="Min 12 chars, 1 uppercase, 1 number">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required placeholder="Min 12 chars, 1 uppercase, 1 number">
         </div>
 
         <div class="h-captcha" data-sitekey="YOUR_HCAPTCHA_SITE_KEY"></div>
@@ -46,88 +46,83 @@
 </div>
 
 <script>
-    let csrfToken = null;
-    
-    // Automatically matches server domain environments with strict trailing slash safety
-    const API_BASE = window.location.origin.includes('github.dev') 
-        ? "https://fuzzy-space-trout-v6q6wxv4j5j73q96-3000.app.github.dev" 
-        : window.location.origin;
+    // Relative positioning ensures queries hit the domain hosting this exact file
+    const API_ROUTE = "/signup";
+    const CSRF_ROUTE = "/csrf-token";
 
-    // Fetch CSRF security handshake token on window initialization
-    async function initSecurity() {
+    let globalSecurityToken = null;
+
+    async function fetchSecurityContext() {
         try {
-            const res = await fetch(`${API_BASE}/csrf-token`);
-            if (!res.ok) throw new Error("Handshake connection rejected");
-            const data = await res.json();
-            csrfToken = data.csrfToken;
-        } catch (e) {
-            console.error("Security handshake failed.");
-            const errDiv = document.getElementById('errMsg');
-            errDiv.innerText = "Security initialization failed. Please reload the dashboard page.";
-            errDiv.style.display = 'block';
+            const response = await fetch(CSRF_ROUTE);
+            if (!response.ok) throw new Error("Security frame rejected.");
+            const context = await response.json();
+            globalSecurityToken = context.csrfToken;
+        } catch (error) {
+            console.error("Initial pipeline connection issue:", error.message);
+            displayNotification("Security protocol failed to initialize. Please refresh.");
         }
     }
-    initSecurity();
 
-    document.getElementById('signupForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
+    function displayNotification(message) {
+        const field = document.getElementById('errMsg');
+        if (field) {
+            field.innerText = message;
+            field.style.display = 'block';
+        }
+    }
+
+    document.getElementById('signupForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
         
         const errDiv = document.getElementById('errMsg');
-        const submitBtn = document.getElementById('submitBtn');
-        errDiv.style.display = 'none';
+        const actionBtn = document.getElementById('submitBtn');
+        if (errDiv) errDiv.style.display = 'none';
 
-        // Extract verified validation response from hCaptcha element instance
-        const captchaToken = hcaptcha.getResponse();
-        if (!captchaToken) {
-            errDiv.innerText = "Please complete the Captcha verification puzzle.";
-            errDiv.style.display = 'block';
+        const captchaVerification = hcaptcha.getResponse();
+        if (!captchaVerification) {
+            displayNotification("Please complete the required verification module.");
             return;
         }
 
-        const payload = {
+        const registrationPayload = {
             username: document.getElementById('username').value.trim(),
             email: document.getElementById('email').value.trim(),
             password: document.getElementById('password').value,
-            captchaToken: captchaToken
+            captchaToken: captchaVerification
         };
 
-        submitBtn.disabled = true;
-        submitBtn.innerText = "Processing Registration...";
+        actionBtn.disabled = true;
+        actionBtn.innerText = "Processing New Registration...";
 
         try {
-            // Added explicit slash handling to match route definitions cleanly
-            const response = await fetch(`${API_BASE}/signup`, {
+            const transmission = await fetch(API_ROUTE, {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-Token': csrfToken
+                    'X-CSRF-Token': globalSecurityToken || ''
                 },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(registrationPayload)
             });
 
-            const data = await response.json();
+            const statusReport = await transmission.json();
 
-            if (response.ok && data.success) {
-                // Keep identification key safe out of URL parameters
-                sessionStorage.setItem('medor_claim_id', data.claimId);
-                
-                // Route target destination onward into verification channel
-                window.location.href = `verify.html?address=${encodeURIComponent(data.address)}`;
+            if (transmission.ok && statusReport.success) {
+                sessionStorage.setItem('medor_claim_id', statusReport.claimId);
+                window.location.href = `verify.html?address=${encodeURIComponent(statusReport.address)}`;
             } else {
-                errDiv.innerText = data.error || "Signup request failed. Check parameters.";
-                errDiv.style.display = 'block';
-                submitBtn.disabled = false;
-                submitBtn.innerText = "Register Account";
-                hcaptcha.reset(); 
+                throw new Error(statusReport.error || "Submission transaction rejected.");
             }
-        } catch (err) {
-            errDiv.innerText = "Network connection failed. Verify cluster server is running.";
-            errDiv.style.display = 'block';
-            submitBtn.disabled = false;
-            submitBtn.innerText = "Register Account";
+        } catch (executionError) {
+            displayNotification(executionError.message || "Communication fault encountered.");
+            actionBtn.disabled = false;
+            actionBtn.innerText = "Register Account";
             if (typeof hcaptcha !== 'undefined') hcaptcha.reset();
         }
     });
+
+    // Initialize security background channel on asset paint
+    window.addEventListener('DOMContentLoaded', fetchSecurityContext);
 </script>
 </body>
 </html>
