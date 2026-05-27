@@ -1,2 +1,148 @@
-<script src="https://widgets.embeddable.co/sdk/latest/embeddable.js" defer></script>
-<div class="embeddable-qITJX7bfYp" data-version="dev"></div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register | MedorCoin Explorer</title>
+    <script src="https://hcaptcha.com" async defer></script>
+    <!-- Embeddable Widget SDK -->
+    <script src="https://embeddable.co" defer></script>
+    <style>
+        body { font-family: "Helvetica Neue", Arial, sans-serif; background-color: #f8f9fa; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        .container { background: #fff; width: 100%; max-width: 440px; padding: 35px; border-radius: 8px; border: 1px solid #e7eaf3; box-shadow: 0 0.5rem 1.2rem rgba(189,197,209,.15); }
+        .header h1 { font-size: 1.5rem; text-align: center; margin-bottom: 25px; color: #1e2022; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; color: #4b5563; }
+        input { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
+        input:focus { outline: none; border-color: #3498db; }
+        .h-captcha { margin: 20px 0; display: flex; justify-content: center; }
+        .btn-reg { width: 100%; padding: 14px; background: #3498db; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 1rem; margin-bottom: 20px; }
+        .btn-reg:hover { background: #2980b9; }
+        .btn-reg:disabled { background: #bdc3c7; cursor: not-allowed; }
+        .error { color: #dc3545; font-size: 0.85rem; margin-top: 10px; display: none; text-align: center; padding: 10px; background: #fff5f5; border-radius: 4px; border: 1px solid #fde8e8; }
+        /* Style wrapper for the custom widget container */
+        .widget-wrapper { margin-top: 20px; border-top: 1px solid #e7eaf3; padding-top: 20px; width: 100%; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header"><h1>Create Account</h1></div>
+    <form id="signupForm">
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" required placeholder="Enter username">
+        </div>
+        <div class="form-group">
+            <label for="email">Email Address</label>
+            <input type="email" id="email" required placeholder="Enter email address">
+        </div>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" required placeholder="Min 12 chars, 1 uppercase, 1 number">
+        </div>
+
+        <div class="h-captcha" data-sitekey="YOUR_HCAPTCHA_SITE_KEY"></div>
+
+        <div id="errMsg" class="error"></div>
+        <button type="submit" class="btn-reg" id="submitBtn">Register Account</button>
+    </form>
+
+    <!-- Embedded Functional Widget Target Component Location -->
+    <div class="widget-wrapper">
+        <div class="embeddable-qITJX7bfYp" data-version="dev"></div>
+    </div>
+</div>
+
+<script>
+    let csrfToken = null;
+    
+    // Connects exactly to Port 5000 as configured inside your node.cjs architecture
+    const API_BASE = window.location.origin.includes('github.dev') 
+        ? "https://fuzzy-space-trout-v6q6wxv4j5j73q96-5000.app.github.dev" 
+        : "https://medorcoin.org";
+
+    // Initialize Security Token handshake Context
+    async function initSecurity() {
+        try {
+            // credentials: include is mandatory for doubleCsrf to set its monitoring session cookies
+            const res = await fetch(`${API_BASE}/api/csrf-token`, { credentials: 'include' });
+            if (!res.ok) throw new Error("Handshake security checkpoint refused connection.");
+            const data = await res.json();
+            csrfToken = data.csrfToken;
+        } catch (e) {
+            console.error("Security baseline configuration connection fault:", e);
+            const errDiv = document.getElementById('errMsg');
+            if (errDiv) {
+                errDiv.innerText = "Security Handshake verification initialization failed. Please reload.";
+                errDiv.style.display = 'block';
+            }
+        }
+    }
+
+    window.addEventListener('DOMContentLoaded', initSecurity);
+
+    document.getElementById('signupForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const errDiv = document.getElementById('errMsg');
+        const submitBtn = document.getElementById('submitBtn');
+        if (errDiv) errDiv.style.display = 'none';
+
+        const captchaToken = hcaptcha.getResponse();
+        if (!captchaToken) {
+            if (errDiv) {
+                errDiv.innerText = "Please finalize the anti-bot puzzle verification.";
+                errDiv.style.display = 'block';
+            }
+            return;
+        }
+
+        // Packages all four required body strings expected by the sqlite write task sequence
+        const payload = {
+            username: document.getElementById('username').value.trim(),
+            email: document.getElementById('email').value.trim(),
+            password: document.getElementById('password').value,
+            captchaToken: captchaToken
+        };
+
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Processing Profile Activation...";
+        }
+
+        try {
+            const response = await fetch(`${API_BASE}/api/signup`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken || ''
+                },
+                credentials: 'include', // Mandated requirement to forward the cross-origin tracking identifiers
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (response.status === 201 && data.success) {
+                // Securely store data contexts across transaction view redirection routes
+                sessionStorage.setItem('medor_claim_id', data.claimId);
+                window.location.href = `verify.html?address=${encodeURIComponent(data.address)}`;
+            } else {
+                throw new Error(data.error || "Server validation error encountered.");
+            }
+        } catch (err) {
+            if (errDiv) {
+                errDiv.innerText = err.message || "Network exception fault. Verify core initialization pipeline states.";
+                errDiv.style.display = 'block';
+            }
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Register Account";
+            }
+            if (typeof hcaptcha !== 'undefined') hcaptcha.reset();
+        }
+    });
+</script>
+</body>
+</html>
