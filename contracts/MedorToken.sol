@@ -8,11 +8,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 /**
  * @dev Standard ERC20 interface to handle external WBTC tokens securely.
  */
-interface IERC20 {
-    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
-    function transfer(address recipient, uint256 amount) external returns (bool);
-    function balanceOf(address account) external view returns (uint256);
-}
 
 contract MedorToken is ERC20, ReentrancyGuard, Ownable {
     
