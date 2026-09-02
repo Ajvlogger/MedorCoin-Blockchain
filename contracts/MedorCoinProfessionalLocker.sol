@@ -1,11 +1,77 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+interface IERC20 {
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address to, uint256 value) external returns (bool);
+    function transferFrom(address from, address to, uint256 value) external returns (bool);
+}
+
+library SafeERC20 {
+    function safeTransferFrom(IERC20 token, address from, address to, uint256 value) internal {
+        (bool success, bytes memory returndata) = address(token).call(
+            abi.encodeWithSelector(IERC20.transferFrom.selector, from, to, value)
+        );
+        require(success, "ERC20 transferFrom failed");
+        require(
+            returndata.length == 0 || abi.decode(returndata, (bool)),
+            "ERC20 transferFrom failed"
+        );
+    }
+
+    function safeTransfer(IERC20 token, address to, uint256 value) internal {
+        require(token.transfer(to, value), "ERC20 transfer failed");
+    }
+}
+
+abstract contract ReentrancyGuard {
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
+    uint256 private _status = _NOT_ENTERED;
+
+    modifier nonReentrant() {
+        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
+        _status = _ENTERED;
+        _;
+        _status = _NOT_ENTERED;
+    }
+}
+
+abstract contract Ownable {
+    address private _owner;
+
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    constructor(address initialOwner) {
+        require(initialOwner != address(0), "Ownable: zero owner");
+        _owner = initialOwner;
+        emit OwnershipTransferred(address(0), initialOwner);
+    }
+
+    function owner() public view returns (address) {
+        return _owner;
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == _owner, "Ownable: caller is not the owner");
+        _;
+    }
+}
+
+interface AggregatorV3Interface {
+    function decimals() external view returns (uint8);
+
+    function latestRoundData()
+        external
+        view
+        returns (
+            uint80 roundId,
+            int256 answer,
+            uint256 startedAt,
+            uint256 updatedAt,
+            uint80 answeredInRound
+        );
+}
 
 /**
  * @title MedorCoin Professional Liquidity Locker
@@ -38,7 +104,7 @@ contract MedorCoinProfessionalLocker is ReentrancyGuard, Ownable {
     event LiquidityLocked(uint256 indexed id, address indexed owner, address indexed lpToken, uint256 amount, uint256 unlockTime);
     event LiquidityWithdrawn(uint256 indexed id, address indexed owner, uint256 amount);
 
-    constructor(address _priceFeed, address payable _treasury) Ownable() {
+    constructor(address _priceFeed, address payable _treasury) Ownable(msg.sender) {
         priceFeed = AggregatorV3Interface(_priceFeed);
         treasury = _treasury;
     }

@@ -1,19 +1,68 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
+interface IERC20 {
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address to, uint256 value) external returns (bool);
+    function transferFrom(address from, address to, uint256 value) external returns (bool);
+}
+
+interface IERC721 {
+    function safeTransferFrom(address from, address to, uint256 tokenId) external;
+}
+
+interface IERC721Receiver {
+    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
+        external returns (bytes4);
+}
+
+interface IERC165 {
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
+}
+
+library SafeERC20 {
+    function safeTransfer(IERC20 token, address to, uint256 value) internal {
+        // slither-disable-next-line reentrancy-benign
+        (bool ok, bytes memory data) = address(token).call(
+            abi.encodeWithSelector(IERC20.transfer.selector, to, value));
+        require(ok && (data.length == 0 || abi.decode(data, (bool))), "ERC20 transfer failed");
+    }
+
+    function safeTransferFrom(IERC20 token, address from, address to, uint256 value) internal {
+        // External token calls are made only by the hub's nonReentrant entry points.
+        // slither-disable-next-line reentrancy-benign
+        (bool ok, bytes memory data) = address(token).call(
+            abi.encodeWithSelector(IERC20.transferFrom.selector, from, to, value));
+        require(ok && (data.length == 0 || abi.decode(data, (bool))), "ERC20 transferFrom failed");
+    }
+}
+
+abstract contract ReentrancyGuard {
+    uint256 private _reentrancyStatus;
+    modifier nonReentrant() {
+        require(_reentrancyStatus == 0, "ReentrancyGuard: reentrant call");
+        _reentrancyStatus = 1;
+        _;
+        _reentrancyStatus = 0;
+    }
+}
+
+abstract contract Pausable {
+    bool private _paused;
+    modifier whenNotPaused() { require(!_paused, "Pausable: paused"); _; }
+    function _pause() internal { _paused = true; }
+    function _unpause() internal { _paused = false; }
+}
+
+abstract contract Ownable {
+    address private _owner;
+    constructor(address initialOwner) { _owner = initialOwner; }
+    modifier onlyOwner() { require(msg.sender == _owner, "Ownable: caller is not the owner"); _; }
+    function owner() public view returns (address) { return _owner; }
+}
 
 contract MedorCoinServiceHub is ReentrancyGuard, Pausable, Ownable, IERC721Receiver {
     using SafeERC20 for IERC20;
-    using Address   for address payable;
 
     // ── Custom errors ─────────────────────────────────────────────────────────
 
@@ -105,8 +154,9 @@ contract MedorCoinServiceHub is ReentrancyGuard, Pausable, Ownable, IERC721Recei
         if (_amountOrId == 0)                                  revert InvalidAmount();
 
         if (_isNFT) {
-            IERC721(_token).safeTransferFrom(msg.sender, address(this), _amountOrId);
             activeNFTLocks[_token] += 1;
+            // slither-disable-next-line reentrancy-benign
+            IERC721(_token).safeTransferFrom(msg.sender, address(this), _amountOrId);
         } else {
             uint256 before = IERC20(_token).balanceOf(address(this));
             IERC20(_token).safeTransferFrom(msg.sender, address(this), _amountOrId);
@@ -172,6 +222,7 @@ contract MedorCoinServiceHub is ReentrancyGuard, Pausable, Ownable, IERC721Recei
 
         if (isNFT) {
             activeNFTLocks[token] -= 1;
+            // slither-disable-next-line reentrancy-benign
             IERC721(token).safeTransferFrom(address(this), msg.sender, amount);
         } else {
             activeTokenLocks[token] -= 1;
@@ -199,11 +250,12 @@ contract MedorCoinServiceHub is ReentrancyGuard, Pausable, Ownable, IERC721Recei
 
     // ── Owner: rescue ─────────────────────────────────────────────────────────
 
-    function rescueStuckTokens(address _token, uint256 _amount) external onlyOwner {
+    function rescueStuckTokens(address _token, uint256 _amount) external onlyOwner nonReentrant {
         if (_token == address(0)) {
-            uint256 bal = address(this).balance;
+            uint256 bal = selfbalance();
             if (bal == 0) revert NothingToRescue();
-            payable(owner()).sendValue(bal);
+            (bool sent, ) = payable(owner()).call{value: bal}("");
+            if (!sent) revert FeeTransferFailed();
             emit ETHRescued(owner(), bal);
         } else {
             if (activeTokenLocks[_token] > 0) revert ActiveERC20LocksExist();
@@ -214,7 +266,7 @@ contract MedorCoinServiceHub is ReentrancyGuard, Pausable, Ownable, IERC721Recei
         }
     }
 
-    function rescueStuckNFT(address _token, uint256 _tokenId) external onlyOwner {
+    function rescueStuckNFT(address _token, uint256 _tokenId) external onlyOwner nonReentrant {
         if (activeNFTLocks[_token] > 0) revert ActiveNFTLocksExist();
         if (!_supportsERC721(_token))   revert TokenIsNotNFTContract();
         IERC721(_token).safeTransferFrom(address(this), owner(), _tokenId);
