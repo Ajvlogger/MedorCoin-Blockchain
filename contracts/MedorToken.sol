@@ -1,13 +1,111 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-
 /**
  * @dev Standard ERC20 interface to handle external WBTC tokens securely.
  */
+interface IERC20 {
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+    function transfer(address recipient, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
+}
+/**
+ * @dev Minimal self-contained ERC20 implementation. Keeping these primitives
+ * in this file avoids making deployment depend on an unavailable import path.
+ */
+contract ERC20 {
+    string public name;
+    string public symbol;
+    uint8 public constant decimals = 18;
+    uint256 public totalSupply;
+
+    mapping(address => uint256) private _balances;
+    mapping(address => mapping(address => uint256)) private _allowances;
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+    constructor(string memory name_, string memory symbol_) {
+        name = name_;
+        symbol = symbol_;
+    }
+
+    function balanceOf(address account) public view returns (uint256) {
+        return _balances[account];
+    }
+
+    function allowance(address owner, address spender) public view returns (uint256) {
+        return _allowances[owner][spender];
+    }
+
+    function transfer(address to, uint256 amount) public returns (bool) {
+        _transfer(msg.sender, to, amount);
+        return true;
+    }
+
+    function approve(address spender, uint256 amount) public returns (bool) {
+        _allowances[msg.sender][spender] = amount;
+        emit Approval(msg.sender, spender, amount);
+        return true;
+    }
+
+    function transferFrom(address from, address to, uint256 amount) public returns (bool) {
+        uint256 currentAllowance = _allowances[from][msg.sender];
+        require(currentAllowance >= amount, "ERC20: insufficient allowance");
+        unchecked {
+            _allowances[from][msg.sender] = currentAllowance - amount;
+        }
+        emit Approval(from, msg.sender, _allowances[from][msg.sender]);
+        _transfer(from, to, amount);
+        return true;
+    }
+
+    function _mint(address account, uint256 amount) internal {
+        require(account != address(0), "ERC20: mint to zero address");
+        totalSupply += amount;
+        _balances[account] += amount;
+        emit Transfer(address(0), account, amount);
+    }
+
+    function _transfer(address from, address to, uint256 amount) internal {
+        require(from != address(0) && to != address(0), "ERC20: zero address");
+        require(_balances[from] >= amount, "ERC20: transfer exceeds balance");
+        unchecked {
+            _balances[from] -= amount;
+            _balances[to] += amount;
+        }
+        emit Transfer(from, to, amount);
+    }
+}
+
+contract ReentrancyGuard {
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
+    uint256 private _status = _NOT_ENTERED;
+
+    modifier nonReentrant() {
+        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
+        _status = _ENTERED;
+        _;
+        _status = _NOT_ENTERED;
+    }
+}
+
+contract Ownable {
+    address public owner;
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    constructor(address initialOwner) {
+        require(initialOwner != address(0), "Ownable: zero owner");
+        owner = initialOwner;
+        emit OwnershipTransferred(address(0), initialOwner);
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Ownable: caller is not the owner");
+        _;
+    }
+}
 
 contract MedorToken is ERC20, ReentrancyGuard, Ownable {
     
@@ -84,8 +182,7 @@ contract MedorToken is ERC20, ReentrancyGuard, Ownable {
         require(balanceOf(address(this)) >= medorAmount, "Insufficient MEDOR in swap pool");
 
         // Transfer the WBTC into the contract safely
-        bool success = IERC20(wbtcTokenAddress).transferFrom(msg.sender, address(this), wbtcAmount);
-        require(success, "WBTC transfer failed");
+        _safeTransferFrom(wbtcTokenAddress, msg.sender, address(this), wbtcAmount);
 
         // Distribute the MEDOR tokens instantly
         _transfer(address(this), msg.sender, medorAmount);
@@ -100,8 +197,31 @@ contract MedorToken is ERC20, ReentrancyGuard, Ownable {
         uint256 totalWBTC = IERC20(wbtcTokenAddress).balanceOf(address(this));
         require(totalWBTC > 0, "No WBTC available to withdraw");
         
-        bool success = IERC20(wbtcTokenAddress).transfer(recipient, totalWBTC);
-        require(success, "Withdrawal failed");
+        _safeTransfer(wbtcTokenAddress, recipient, totalWBTC);
+    }
+
+    function _safeTransfer(address token, address recipient, uint256 amount) internal {
+        (bool success, bytes memory returnData) = token.call(
+            abi.encodeWithSelector(IERC20.transfer.selector, recipient, amount)
+        );
+        require(
+            success &&
+                (returnData.length == 0 ||
+                    (returnData.length == 32 && abi.decode(returnData, (bool)))),
+            "ERC20: transfer failed"
+        );
+    }
+
+    function _safeTransferFrom(address token, address sender, address recipient, uint256 amount) internal {
+        (bool success, bytes memory returnData) = token.call(
+            abi.encodeWithSelector(IERC20.transferFrom.selector, sender, recipient, amount)
+        );
+        require(
+            success &&
+                (returnData.length == 0 ||
+                    (returnData.length == 32 && abi.decode(returnData, (bool)))),
+            "ERC20: transferFrom failed"
+        );
     }
 
     // --- ORIGINAL MINING LOGIC ---
