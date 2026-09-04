@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; connect-src 'self' http://127.0.0.1:8080 https://127.0.0.1:8332; img-src 'self' data:;">
+<!-- Security Policies configured to allow standard secure blockchain nodes -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.ethers.cloud https://*.infura.io https://*.alchemyapi.io wss://*.bridge.walletconnect.org https://ankr.com; img-src 'self' data:;">
 <title>MedorCoin Wallet</title>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js" integrity="sha512-E8QSvWZ0eCLGk4km3hxSsNmGWbLtSCSUcewDQPQWZF6pEU8GlT8a5fF32wOl1i8ftdMhssTrF/OhyGWtxbC928=" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/elliptic/6.5.4/elliptic.min.js" integrity="sha512-fPEaF8/njK0f0q0A//pMoxxUXXT/xZkE2H1eS2Yx23lP2A6IkeM60y8/7X2ZzBcvB+xJ1Kz/A4DtwYg==" crossorigin="anonymous"></script>
+<!-- Standard Ethers.js integration replaces historical offline encryption frameworks -->
+<script src="https://cloudflare.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0eVDvAHU/QZ1/10UeUEX1H50DqJ1f9/jR0yYn/mIu1y==" crossorigin="anonymous"></script>
 
 <style>
-/* ... [Keep all your existing CSS exactly as it was] ... */
 :root {
   --bg:     #0b0f1a;
   --panel:  #12182a;
@@ -52,28 +52,19 @@ label{font-size:12px;color:var(--muted);display:block;margin-bottom:5px;}
 input,textarea{width:100%;padding:12px 14px;background:#0b0f1a;border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:border-color 0.2s;margin-bottom:14px;}
 input:focus{border-color:var(--cyan);}
 input[readonly]{color:var(--muted);cursor:default;}
-.input-row{display:grid;grid-template-columns:2fr 1fr;gap:12px;}
 .btn{width:100%;padding:14px;border-radius:10px;border:none;cursor:pointer;font-weight:700;font-size:15px;transition:0.2s;font-family:inherit;}
 .btn.primary{background:linear-gradient(135deg,var(--cyan),var(--dim));color:#001018;}
 .btn.primary:hover{box-shadow:0 0 20px rgba(0,234,255,0.4);}
 .btn.primary:disabled{opacity:0.4;cursor:not-allowed;}
-.btn.danger{background:linear-gradient(135deg,#dc2626,var(--red));color:#fff;}
 .ok {color:#6ee7b7;font-size:13px;margin-top:8px;}
 .err{color:#fca5a5;font-size:13px;margin-top:8px;}
 .info{color:var(--muted);font-size:13px;margin-top:8px;}
 .copy-hint{font-size:12px;color:var(--cyan);cursor:pointer;display:inline-block;margin-top:-8px;margin-bottom:12px;transition:0.2s;}
 .copy-hint:hover{opacity:0.7;}
-.tx-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);font-size:14px;}
-.tx-item:last-child{border-bottom:none;}
-.tx-addr{color:var(--muted);font-size:12px;margin-top:2px;word-break:break-all;}
-.tx-amt.in {color:#6ee7b7;}
-.tx-amt.out{color:#fca5a5;}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--danger);display:inline-block;margin-right:6px;vertical-align:middle;transition:background 0.3s;}
 .dot.on{background:var(--green);}
 .page{display:none;}
 .page.active{display:block;}
-.spinner{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,0.25);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px;}
-@keyframes spin{to{transform:rotate(360deg)}}
 @media(max-width:900px){
   #sidebar{position:fixed;top:0;left:0;height:100%;z-index:1000;transform:translateX(-100%);}
   #sidebar.open{transform:translateX(0);}
@@ -87,6 +78,105 @@ input[readonly]{color:var(--muted);cursor:default;}
 
   <div id="sidebar">
     <span class="brand">⬡ MedorCoin</span>
-    <a href="#" onclick="go('dashboard')" id="nav-dashboard">🏠 Dashboard</a>
-    <a href="#" onclick="go('send')"      id="nav-send">↑ Send</a>
-    <a href="#" onclick="go('
+    <a href="#" onclick="go('dashboard')" id="nav-dashboard" class="active">🏠 Dashboard</a>
+    <a href="#" onclick="go('send')"      id="nav-send">↑ Send MEDOR</a>
+    <a href="#" onclick="go('swap')"      id="nav-swap">⇆ Swap WBTC</a>
+    <div class="divider"></div>
+    <button class="logout-btn" onclick="disconnectWallet()">🔌 Disconnect</button>
+  </div>
+
+  <div id="content">
+    <div class="topbar">
+      <button class="hamburger" onclick="toggleMobileMenu()">☰</button>
+      <span class="brand" style="margin-bottom:0;">⬡ MedorCoin</span>
+    </div>
+
+    <!-- PAGE 1: DASHBOARD -->
+    <div id="page-dashboard" class="page active">
+      <div class="card balance-card">
+        <h3>Account Connected Address</h3>
+        <div class="balance-usd" id="userAddressText" style="font-family: monospace; word-break: break-all; margin-bottom:12px;">Not Connected</div>
+        <h3>Your Current Balance</h3>
+        <div class="balance-amount" id="medorBalanceDisplay">0.0000</div>
+        <div class="balance-usd">MEDOR Utility Tokens</div>
+        <div class="balance-actions">
+          <button class="action-btn p" onclick="connectOnChainWeb3()">Connect Node Wallet</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Network Node Cluster Status</h3>
+        <div class="info"><span id="networkStatusDot" class="dot"></span> <span id="networkStatusText">Disconnected from Chain Network</span></div>
+        <div class="info" style="margin-top: 8px;">Swap Contract Pool Status: <span id="swapStatusDisplay" style="color:var(--cyan); font-weight:bold;">Closed</span></div>
+      </div>
+    </div>
+
+    <!-- PAGE 2: SEND TOKENS -->
+    <div id="page-send" class="page">
+      <div class="card">
+        <h3>Transfer MEDOR Assets</h3>
+        <label>Recipient EVM Address</label>
+        <input type="text" id="sendTargetAddress" placeholder="0x...">
+        <label>Amount of MEDOR to Send</label>
+        <input type="number" id="sendTokenAmount" placeholder="0.0">
+        <button class="btn primary" id="sendExecutionBtn" onclick="executeTokenTransfer()">Broadcast Transfer</button>
+        <div id="sendFeedback" class="info">Awaiting parameter input...</div>
+      </div>
+    </div>
+
+    <!-- PAGE 3: SWAP WBTC -->
+    <div id="page-swap" class="page">
+      <div class="card">
+        <h3>Pre-Launch Swap Facility</h3>
+        <div class="info" style="margin-bottom: 12px; background: rgba(0,234,255,0.05); padding: 10px; border-radius: 8px;">
+          Current Exchange Valuation Rate: <span id="swapRateText" style="color:var(--cyan); font-weight:bold;">Loading...</span> MEDOR per 1 WBTC
+        </div>
+        <label>WBTC Amount to Spend</label>
+        <input type="number" id="wbtcInputAmount" step="0.00000001" placeholder="0.00000000" oninput="calculateExpectedMedorOutput()">
+        <label>Expected MEDOR Tokens You Receive</label>
+        <input type="text" id="medorOutputPreview" readonly placeholder="0.0000">
+        
+        <!-- Combined multi-transaction interface automates user tasks -->
+        <button class="btn primary" id="swapSequenceBtn" onclick="executeWbtcSwapPipeline()">Execute Automated Swap</button>
+        <div id="swapFeedback" class="info">Connect your wallet network node to view trading configurations.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+    // Unified Smart Contract Interface Deploy Parameters
+    const MEDOR_CONTRACT_ADDRESS = "0xC2C5235Eaff33E6c101542C717887559a1EFe5b5";
+    const WBTC_CONTRACT_ADDRESS  = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
+
+    const MEDOR_ABI = [
+        "function balanceOf(address account) view returns (uint256)",
+        "function isSwapActive() view returns (bool)",
+        "function tokensPerWBTC() view returns (uint256)",
+        "function transfer(address to, uint256 value) external returns (bool)",
+        "function swapWBTCForMedor(uint256 wbtcAmount) external"
+    ];
+
+    const WBTC_ABI = [
+        "function allowance(address owner, address spender) view returns (uint256)",
+        "function approve(address spender, uint256 value) external returns (bool)"
+    ];
+
+    let provider, signer, medorContract, wbtcContract;
+    let userAddress = "";
+    let systemTokensPerWbtc = 0n;
+
+    function go(pageId) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('#sidebar a').forEach(a => a.classList.remove('active'));
+        document.getElementById(`page-${pageId}`).classList.add('active');
+        document.getElementById(`nav-${pageId}`).classList.add('active');
+    }
+
+    function toggleMobileMenu() {
+        document.getElementById('sidebar').classList.toggle('open');
+    }
+
+    async function connectOnChainWeb3() {
+        if (!window.ethereum) {
