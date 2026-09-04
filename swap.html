@@ -1,347 +1,296 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- Configured to fetch live crypto rates safely from public APIs -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cloudflare.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.coingecko.com https://*.ethers.cloud https://ankr.com https://*.infura.io; img-src 'self' data: https://unsplash.com;">
-<title>MedorCoin Global Trading Desk</title>
-
-<!-- Standard Ethers.js integration for direct on-chain contract interaction -->
-<script src="https://cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
-
-<style>
-:root {
-  --bg:          #080b14;
-  --header-bg:   #0a1428; /* Deep Dark Blue Header Background */
-  --panel:       #121b2d;
-  --cream:       #fcf8ed; /* Elegant Cream Writing Color */
-  --cyan:        #00eaff;
-  --dim-cyan:    #00b8cc;
-  --text:        #e8faff;
-  --muted:       #8ba3ba;
-  --border:      rgba(0,234,255,0.12);
-  --green:       #10b981;
-  --danger:      #ff4d6d;
-}
-*,::before,::after{margin:0;padding:0;box-sizing:border-box;}
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: "Segoe UI", system-ui, sans-serif;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-/* HIGH-END DARK BLUE HEADER ARCHITECTURE */
-header {
-  width: 100%;
-  background: var(--header-bg);
-  border-bottom: 1px solid var(--border);
-  padding: 16px 40px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-}
-.brand-group {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.brand-logo {
-  font-size: 24px;
-  color: var(--cyan);
-}
-.brand-name {
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--cream); /* Cream Header Text */
-  letter-spacing: 1px;
-}
-nav {
-  display: flex;
-  gap: 24px;
-}
-nav a {
-  color: var(--cream); /* Cream Header Text Links */
-  text-decoration: none;
-  font-size: 15px;
-  font-weight: 600;
-  transition: color 0.2s;
-}
-nav a:hover {
-  color: var(--cyan);
-}
-
-/* MAIN LAYOUT WRAPPER */
-.main-wrapper {
-  max-width: 1200px;
-  width: 100%;
-  margin: 40px auto;
-  padding: 0 20px;
-  display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: 40px;
-  flex: 1;
-  align-items: center;
-}
-
-/* PROFESSIONAL VISUAL MARKETING BLOCK */
-.showcase-block {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-.showcase-title {
-  font-size: 38px;
-  font-weight: 800;
-  line-height: 1.2;
-  background: linear-gradient(135deg, var(--cream), var(--cyan));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-.showcase-desc {
-  color: var(--muted);
-  font-size: 16px;
-  line-height: 1.6;
-}
-/* Colorful, high-impact professional crypto presentation artwork */
-.crypto-graphic {
-  width: 100%;
-  height: 260px;
-  border-radius: 20px;
-  background: url('https://unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=800') center/cover no-repeat;
-  border: 1px solid var(--border);
-  box-shadow: 0 0 30px rgba(0, 234, 255, 0.1);
-}
-
-/* CONVERSION TRADING TERMINAL PANEL */
-.swap-card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 28px;
-  padding: 28px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.4);
-}
-.swap-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-.swap-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--cream);
-}
-.live-indicator {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--green);
-  padding: 4px 10px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.live-dot {
-  width: 6px;
-  height: 6px;
-  background: var(--green);
-  border-radius: 50%;
-  animation: pulse 1.5s infinite;
-}
-.input-box {
-  background: rgba(8, 11, 20, 0.6);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 16px;
-  margin-bottom: 14px;
-}
-.input-label {
-  font-size: 12px;
-  color: var(--muted);
-  margin-bottom: 6px;
-  display: block;
-}
-.input-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.input-row input {
-  background: none;
-  border: none;
-  color: var(--text);
-  font-size: 26px;
-  font-weight: 700;
-  width: 70%;
-  outline: none;
-  font-family: monospace;
-}
-.token-badge {
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--cyan);
-  background: rgba(0, 234, 255, 0.08);
-  padding: 6px 14px;
-  border-radius: 10px;
-  border: 1px solid rgba(0, 234, 255, 0.2);
-}
-.ticker-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  color: var(--muted);
-  margin-bottom: 20px;
-  padding: 0 4px;
-}
-.btn {
-  width: 100%;
-  padding: 16px;
-  border-radius: 16px;
-  border: none;
-  font-weight: 700;
-  font-size: 16px;
-  cursor: pointer;
-  transition: 0.2s;
-}
-.btn.primary {
-  background: linear-gradient(135deg, var(--cyan), var(--dim-cyan));
-  color: #001018;
-}
-.btn.primary:hover {
-  box-shadow: 0 0 25px rgba(0,234,255,0.4);
-}
-.btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-  box-shadow: none !important;
-}
-.status-msg {
-  text-align: center;
-  font-size: 13px;
-  color: var(--muted);
-  margin-top: 14px;
-  line-height: 1.4;
-}
-
-@keyframes pulse {
-  0% { transform: scale(0.95); opacity: 0.5; }
-  50% { transform: scale(1.1); opacity: 1; }
-  100% { transform: scale(0.95); opacity: 0.5; }
-}
-@media(max-width: 900px) {
-  .main-wrapper { grid-template-columns: 1fr; gap: 30px; margin: 20px auto; }
-  header { padding: 16px 20px; }
-}
-</style>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Buy MedorCoin</title>
+  <!-- Secure Ethers.js v6 configuration for decentralized wallet tracking -->
+  <script src="https://cloudflare.com"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --ink: #e5e7eb;
+      --border: #334155;
+      /* Precise Light Gold styling matrix */
+      --gold: #f3e5ab; 
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Inter, Segoe UI, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    /* LIGHT GOLD STANDALONE BOX */
+    .swap-box {
+      background: var(--gold);
+      color: #000000; /* Black Font */
+      width: 100%;
+      max-width: 480px;
+      padding: 28px;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border: 1px solid rgba(0,0,0,0.1);
+    }
+    
+    .swap-title {
+      font-weight: 800;
+      font-size: 24px;
+      margin-bottom: 20px;
+      text-align: center;
+      color: #000000; /* Black Font */
+    }
+    
+    .input-group {
+      margin-bottom: 16px;
+    }
+    
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #1a1a1a;
+    }
+    
+    input {
+      width: 100%;
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(0,0,0,0.15);
+      border-radius: 10px;
+      color: #000000;
+      font-size: 16px;
+      font-weight: 600;
+      outline: none;
+    }
+    input:focus {
+      background: #ffffff;
+      border-color: #000000;
+    }
+    input[readonly] {
+      background: rgba(255, 255, 255, 0.4);
+      cursor: default;
+    }
+    
+    .rate-info {
+      font-size: 12px;
+      font-weight: 600;
+      color: #333333;
+      margin: 10px 0 20px;
+      text-align: space-between;
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 16px;
+      background: #000000;
+      color: #ffffff;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn:hover {
+      background: #222222;
+    }
+    .btn:disabled {
+      background: #aaaaaa;
+      color: #666666;
+      cursor: not-allowed;
+    }
+    
+    .feedback {
+      font-size: 12px;
+      text-align: center;
+      margin-top: 12px;
+      color: #444444;
+      font-weight: 500;
+    }
+    
+    /* Top link to go home smoothly */
+    .back-link {
+      margin-bottom: 15px;
+      font-size: 13px;
+      color: var(--muted);
+      text-decoration: none;
+    }
+    .back-link:hover {
+      color: var(--ink);
+    }
+  </style>
 </head>
 <body>
 
-<!-- COMPREHENSIVE DARK BLUE & CREAM EXECUTIVE HEADER -->
-<header>
-  <div class="brand-group">
-    <span class="brand-logo">⬡</span>
-    <span class="brand-name">MEDORCOIN</span>
-  </div>
-  <nav>
-    <a href="miners.html">Mining Terminal</a>
-    <a href="wallet.html">Account Vault</a>
-    <a href="faq.html">Documentation</a>
-  </nav>
-  <button class="btn primary" id="connectWalletBtn" style="width:auto; padding:8px 16px; font-size:13px; border-radius:10px;" onclick="initWeb3Node()">Connect Wallet</button>
-</header>
+<a href="index.html" class="back-link">← Return to HomePage</a>
 
-<div class="main-wrapper">
+<!-- STANDALONE TRANSACTION BOX -->
+<div class="swap-box">
+  <h1 class="swap-title">Buy MedorCoin</h1>
   
-  <!-- VISUAL BRAND STORY & DYNAMIC GRAPHIC BLOCK -->
-  <div class="showcase-block">
-    <h1 class="showcase-title">Institutional Pre-Launch Asset Swap Portal</h1>
-    <p class="showcase-desc">Secure physical allocation of MEDOR utilities through instant conversion pipelines. All settlements occur immediately on the decentralized network routing architecture, powered by direct smart contract validation layers.</p>
-    <div class="crypto-graphic"></div>
+  <div class="input-group">
+    <label>Amount of Wrapped Bitcoin (WBTC) to Spend</label>
+    <input type="number" id="wbtcInput" step="0.00000001" placeholder="0.00000000" oninput="calculateOutput()">
   </div>
 
-  <!-- CONVERSION TRADING ENGINE PANEL -->
-  <div class="swap-card">
-    <div class="swap-header">
-      <span class="swap-title">Buy MEDOR Tokens</span>
-      <div class="live-indicator">
-        <div class="live-dot"></div>
-        <span>Live Price Feeds Active</span>
-      </div>
-    </div>
-
-    <!-- SPEND PARAMETERS PANEL -->
-    <div class="input-box">
-      <span class="input-label">You Spend</span>
-      <div class="input-row">
-        <input type="number" id="wbtcAmountField" step="0.00000001" placeholder="0.00000000" oninput="calculateDynamicValues()">
-        <span class="token-badge">WBTC</span>
-      </div>
-    </div>
-
-    <!-- DISTRIBUTION PREVIEW PANEL -->
-    <div class="input-box">
-      <span class="input-label">You Receive (Fixed On-Chain Allocation)</span>
-      <div class="input-row">
-        <input type="text" id="medorOutputPreview" readonly placeholder="0.0000">
-        <span class="token-badge">MEDOR</span>
-      </div>
-    </div>
-
-    <!-- DYNAMIC PRICING AND FINANCIAL METRICS LAYER -->
-    <div class="ticker-row">
-      <div>Global Market Price: <span id="wbtcUsdPrice" style="color: var(--cream); font-weight: bold; font-family: monospace;">$0.00</span></div>
-      <div>Swap Rate: <span id="poolRateDisplay" style="color: var(--cyan); font-weight: bold; font-family: monospace;">... MEDOR</span></div>
-    </div>
-
-    <button class="btn primary" id="mainSubmitBtn" onclick="processSwapPipeline()" disabled>Connect Your Web3 Wallet</button>
-    <div id="pipelineFeedback" class="status-msg">Establish a connection to clear limits and retrieve live parameters.</div>
+  <div class="input-group">
+    <label>Amount of MEDOR You Receive</label>
+    <input type="text" id="medorOutput" readonly placeholder="0.0000">
   </div>
 
+  <div class="rate-info">
+    <span>Contract Pool Pricing:</span>
+    <span id="rateDisplay" style="font-family: monospace;">Loading on-chain rate...</span>
+  </div>
+
+  <button class="btn" id="actionButton" onclick="handleTradePipeline()">Connect Wallet</button>
+  <div id="feedbackText" class="feedback">Connect your Web3 extension wallet to unlock the transaction pool.</div>
 </div>
 
 <script>
-    // Unified Production Environment Contract Specifications
-    const MEDOR_CONTRACT_ADDRESS = "0xC2C5235Eaff33E6c101542C717887559a1EFe5b5";
-    const WBTC_CONTRACT_ADDRESS  = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
+  // Exact On-Chain Deployed Smart Contract Infrastructure Parameters
+  const MEDOR_ADDRESS = "0xC2C5235Eaff33E6c101542C717887559a1EFe5b5";
+  const WBTC_ADDRESS  = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599";
 
-    const MEDOR_ABI = [
-        "function isSwapActive() view returns (bool)",
-        "function tokensPerWBTC() view returns (uint256)",
-        "function swapWBTCForMedor(uint256 wbtcAmount) external"
-    ];
+  const MEDOR_ABI = [
+    "function isSwapActive() view returns (bool)",
+    "function tokensPerWBTC() view returns (uint256)",
+    "function swapWBTCForMedor(uint256 wbtcAmount) external"
+  ];
 
-    const WBTC_ABI = [
-        "function allowance(address owner, address spender) view returns (uint256)",
-        "function approve(address spender, uint256 value) external returns (bool)"
-    ];
+  const WBTC_ABI = [
+    "function allowance(address owner, address spender) view returns (uint256)",
+    "function approve(address spender, uint256 value) external returns (bool)"
+  ];
 
-    let provider, signer, medorContract, wbtcContract;
-    let userAddress = "";
-    let systemTokensPerWbtc = 0n;
+  let provider, signer, medorContract, wbtcContract;
+  let walletConnected = false;
+  let userAddress = "";
+  let systemTokensPerWbtc = 0n;
 
-    // REAL-TIME ORACLE VALUE FEED CALCULATOR LAYER
-    async function fetchLiveMarketPrices() {
-        try {
-            const response = await fetch("https://coingecko.com");
-            const data = await response.json();
-            const price = data['wrapped-bitcoin'].usd;
-            document.getElementById("wbtcUsdPrice").innerText = "$" + price.toLocaleString(undefined, {minimumFractionDigits: 2});
-        } catch (err) {
-            console.warn("Pricing oracle fallback loop engagement:", err);
-            document.getElementById("wbtcUsdPrice").innerText = "Network Busy";
-        }
+  async function connectWallet() {
+    if (!window.ethereum) {
+      alert("No Web3 provider recognized. Please install MetaMask or Rabby.");
+      return;
     }
+    try {
+      provider = new ethers.BrowserProvider(window.ethereum);
+      const accounts = await provider.send("eth_requestAccounts", []);
+      signer = await provider.getSigner();
+      userAddress = accounts[0];
+      
+      medorContract = new ethers.Contract(MEDOR_ADDRESS, MEDOR_ABI, signer);
+      wbtcContract  = new ethers.Contract(WBTC_ADDRESS, WBTC_ABI, signer);
+      
+      walletConnected = true;
+      await syncContractParameters();
+    } catch (err) {
+      console.error("Connection cancelled:", err);
+    }
+  }
 
-    async function initWeb3Node() {
-        if (!window.ethereum) { return alert("Web3 Provider missing. Install MetaMask or Rabby."); }
-        try {
-            provider = new ethers.BrowserProvider(window.ethereum);
+  async function syncContractParameters() {
+    if (!medorContract) return;
+    try {
+      const active = await medorContract.isSwapActive();
+      const rate = await medorContract.tokensPerWBTC();
+      systemTokensPerWbtc = BigInt(rate);
+      
+      document.getElementById("rateDisplay").innerText = `1 WBTC = ${systemTokensPerWbtc.toString()} MEDOR`;
+      
+      const btn = document.getElementById("actionButton");
+      const feedback = document.getElementById("feedbackText");
+      
+      if (!active) {
+        btn.setAttribute("disabled", "true");
+        btn.innerText = "Swap Closed";
+        feedback.innerText = "Pre-launch swap pool parameters are currently set to closed by the administrator.";
+      } else {
+        btn.removeAttribute("disabled");
+        btn.innerText = "Execute Purchase";
+        feedback.innerText = "Clears token ledger validation layers instantly.";
+      }
+    } catch (err) {
+      console.error("State sync tracking issue:", err);
+    }
+  }
+
+  function calculateOutput() {
+    const inputAmount = document.getElementById("wbtcInput").value.trim();
+    const outputField = document.getElementById("medorOutput");
+    
+    if (!inputAmount || isNaN(inputAmount) || systemTokensPerWbtc === 0n || parseFloat(inputAmount) <= 0) {
+      outputField.value = "0.0000";
+      return;
+    }
+    
+    const outputTokens = parseFloat(inputAmount) * Number(systemTokensPerWbtc);
+    outputField.value = outputTokens.toLocaleString(undefined, { minimumFractionDigits: 4 }) + " MEDOR";
+  }
+
+  async function handleTradePipeline() {
+    if (!walletConnected) {
+      await connectWallet();
+      return;
+    }
+    
+    const inputVal = document.getElementById("wbtcInput").value.trim();
+    const feedback = document.getElementById("feedbackText");
+    const btn = document.getElementById("actionButton");
+    
+    if (!inputVal || isNaN(inputVal) || parseFloat(inputVal) <= 0) {
+      alert("Please provide a valid spending input value.");
+      return;
+    }
+    
+    try {
+      btn.setAttribute("disabled", "true");
+      // Scale clean float string up into 8-decimal WBTC satoshis metric whole numbers
+      const satoshiUnits = BigInt(Math.round(parseFloat(inputVal) * 10**8));
+      
+      feedback.innerText = "Verifying existing WBTC authorization allowance...";
+      const currentAllowance = await wbtcContract.allowance(userAddress, MEDOR_ADDRESS);
+      
+      if (currentAllowance < satoshiUnits) {
+        feedback.innerText = "Step 1 of 2: Confirm WBTC allowance in your extension wallet...";
+        const txApprove = await wbtcContract.approve(MEDOR_ADDRESS, satoshiUnits);
+        await txApprove.wait();
+        feedback.innerText = "Allowance cleared! Initializing swap finalization...";
+      }
+      
+      feedback.innerText = "Step 2 of 2: Executing on-chain swap transaction...";
+      const txSwap = await medorContract.swapWBTCForMedor(satoshiUnits);
+      await txSwap.wait();
+      
+      feedback.innerText = "🎉 Success! Your MEDOR tokens have been safely distributed.";
+      document.getElementById("wbtcInput").value = "";
+      document.getElementById("medorOutput").value = "0.0000";
+    } catch (err) {
+      feedback.innerText = "Pipeline rejected by chain nodes or user signature cancelled.";
+      console.error(err);
+    } finally {
+      btn.removeAttribute("disabled");
+      await syncContractParameters();
+    }
+  }
+
+  // Auto-check for extension logins on frame load
+  window.addEventListener('load', async () => {
+    if (window.ethereum) {
+      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      if (accounts.length > 0) { connectWallet(); }
+    }
+  });
+</script>
+</body>
+</html>
