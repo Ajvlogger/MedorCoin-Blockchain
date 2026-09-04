@@ -4,6 +4,8 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>MedorCoin Mining - Miners</title>
+  <!-- Load standard ethers.js script to allow the web browser to query the blockchain directly -->
+  <script src="https://cloudflare.com"></script>
   <style>
     :root{ --bg:#0f1013; --bg-elev:#15171b; --ink:#f8fafa; --muted:#a3a3a3; --border:#232630; --accent:#ff8a00; --accent-2:#ffb84d; --pill:#1c2029; }
     *{box-sizing:border-box}
@@ -38,11 +40,10 @@
       <div class="status">
         <div class="balance">
           <span class="badge">MEDOR coin mining</span>
-          <span id="walletBalance" style="font-family: monospace">0.00000000 MEDOR</span>
+          <span id="walletBalance" style="font-family: monospace">Wallet Disconnected</span>
         </div>
         <div class="row" id="authContainer">
-          <a href="login.html" class="muted">Login</a>
-          <a href="signup.html" class="badge" style="margin-left:12px">Sign Up</a>
+          <a href="#" id="connectWalletLink" class="muted" onclick="initWeb3(event)">Connect Wallet</a>
           <button class="menu-trigger" style="background:none; border:none; color:#fff; cursor:pointer; font-size:20px; margin-left:15px;" onclick="toggleMenu()">☰</button>
         </div>
       </div>
@@ -56,63 +57,144 @@
     <div class="panel">
         <div class="kicker">Total Mining Pool Balance</div>
         <div class="big" id="liveBalance">0.00000000 MEDOR</div>
-        <div class="muted">Speed: <span id="liveTotalSpeed">0.00</span> GH/s</div>
+        <div class="muted" id="walletStatus">Difficulty Target: Loading...</div>
     </div>
 
     <div class="grid">
-        <!-- Contracts and subscriptions follow your original design -->
         <div class="card">
-            <div class="kicker">Free Contract</div>
-            <div class="price">4 GH/s</div>
-            <button class="btn" onclick="sendAction('claimFree')">Claim 12H</button>
+            <div class="kicker">Mining Dashboard</div>
+            <div class="price" id="miningRewardText">50 MEDOR / Block</div>
+            <button class="btn" id="miningActionBtn" onclick="handleMiningAction()">Claim Reward</button>
         </div>
-        <!-- ... rest of your cards ... -->
     </div>
 
     <section class="how-it-works">
         <h2>How It Works</h2>
-        <p>MEDOR is the token of the MEDORCOIN blockchain. You can mine it using any device...</p>
+        <p>MEDOR is a mineable on-chain asset. To claim rewards securely, users interact with the contract parameters directly through their web3 extensions.</p>
     </section>
   </div>
 
 <script>
-    (function() {
-        // Automatically switches between secure wss:// for production and ws:// for local testing
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        
-        // If your backend runs on a different port (like 8080), change it here. 
-        // If you use a reverse proxy (like Nginx), you can just use window.location.host
-        const socketUrl = `${protocol}//${window.location.hostname}:8080`;
-        
-        const ws = new WebSocket(socketUrl);
-        
-        // Element variable definitions targeting your dashboard UI
-        const heightDisplay = document.getElementById('blockHeightValue') || document.querySelector('.height-text');
-        const hashDisplay = document.getElementById('lastHashValue') || document.querySelector('.hash-text');
-        const diffDisplay = document.getElementById('difficultyValue') || document.querySelector('.diff-text');
-        const hashrateDisplay = document.getElementById('hashrateValue') || document.querySelector('.hashrate-text');
-        const banner = document.getElementById('walletStatus') || document.querySelector('.status-banner');
+    // Exact On-Chain Smart Contract Configurations
+    const CONTRACT_ADDRESS = "0xC2C5235Eaff33E6c101542C717887559a1EFe5b5";
+    const CONTRACT_ABI = [
+        "function balanceOf(address account) view returns (uint256)",
+        "function miningTarget() view returns (uint256)",
+        "function activeCommitment(address miner) view returns (bytes32)",
+        "function commitSolution(bytes32 commitmentHash) external",
+        "function claimMiningReward(uint64 nonce) external"
+    ];
 
-        ws.onopen = () => {
-            if (banner) banner.innerHTML = '<span style="color:#10b981">●</span> MedorCoin Cluster Connection Live';
-        };
+    let provider;
+    let signer;
+    let contract;
+    let userAddress = "";
 
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
+    function toggleMenu() {
+        const nav = document.getElementById('navDropdown');
+        nav.style.display = nav.style.display === 'none' ? 'flex' : 'none';
+    }
+
+    // Connect user's wallet extension directly to the page infrastructure
+    async function initWeb3(event) {
+        if (event) event.preventDefault();
+        if (!window.ethereum) {
+            alert("Web3 Extension not detected. Please install MetaMask or Rabby.");
+            return;
+        }
+        try {
+            provider = new ethers.BrowserProvider(window.ethereum);
+            await provider.send("eth_requestAccounts", []);
+            signer = await provider.getSigner();
+            userAddress = await signer.getAddress();
+            contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+            // Update Header Display Elements
+            document.getElementById("connectWalletLink").innerText = "Connected";
+            await refreshDynamicState();
+        } catch (err) {
+            console.error("Wallet connection failed:", err);
+        }
+    }
+
+    // Pull data directly from the blockchain to keep fields dynamic
+    async function refreshDynamicState() {
+        if (!contract) return;
+        try {
+            // 1. Fetch Pool Balance and update big text panel
+            const poolBalance = await contract.balanceOf(CONTRACT_ADDRESS);
+            document.getElementById("liveBalance").innerText = `${parseFloat(ethers.formatEther(poolBalance)).toLocaleString()} MEDOR`;
+
+            // 2. Fetch Difficulty Target and display in status string
+            const targetHex = await contract.miningTarget();
+            document.getElementById("walletStatus").innerText = `Difficulty Target: 0x${targetHex.toString(16).substring(0, 16)}...`;
+
+            // 3. Fetch User Address Balance
+            const userBalance = await contract.balanceOf(userAddress);
+            document.getElementById("walletBalance").innerText = `${parseFloat(ethers.formatEther(userBalance)).toFixed(4)} MEDOR`;
+
+            // 4. Update core interactive button depending on user commitment step state
+            const currentCommitment = await contract.activeCommitment(userAddress);
+            const actionBtn = document.getElementById("miningActionBtn");
             
-            if (data.type === 'STATE_SYNC' || data.type === 'STATS_UPDATE') {
-                if (heightDisplay) heightDisplay.innerText = `#${data.height}`;
-                if (diffDisplay) diffDisplay.innerText = `${data.difficulty}`;
-                if (hashrateDisplay) hashrateDisplay.innerText = data.hps !== undefined ? `${data.hps} H/s` : '0 H/s';
-                
-                if (hashDisplay && data.hash) {
-                    hashDisplay.innerText = `${data.hash.substring(0, 10)}...${data.hash.substr(-10)}`;
-                }
+            if (currentCommitment === ethers.ZeroHash) {
+                actionBtn.innerText = "Commit Solution Hash";
+            } else {
+                actionBtn.innerText = "Claim Mining Reward";
             }
-        };
+        } catch (err) {
+            console.error("Error synchronizing contract states:", err);
+        }
+    }
 
-        ws.onclose = () => {
-            if (banner) banner.innerHTML = '<span style="color:#ef4444">●</span> Connection Terminated. Reconnecting...';
-        };
-    })();
+    // Process user click safely through on-chain transaction flows
+    async function handleMiningAction() {
+        if (!contract) {
+            alert("Please connect your wallet first by clicking 'Connect Wallet'.");
+            return;
+        }
+        const actionBtn = document.getElementById("miningActionBtn");
+        const currentCommitment = await contract.activeCommitment(userAddress);
+
+        try {
+            if (currentCommitment === ethers.ZeroHash) {
+                // Step 1: User needs to commit a hash
+                const promptHash = prompt("Enter your calculated 32-byte solution hash (0x...):");
+                if (!promptHash || promptHash.length !== 66) {
+                    alert("Invalid hash length or structure!");
+                    return;
+                }
+                actionBtn.innerText = "Broadcasting Commit...";
+                const tx = await contract.commitSolution(promptHash);
+                await tx.wait();
+                alert("Commit transaction confirmed! Please wait 1 block before submitting your matching nonce.");
+            } else {
+                // Step 2: User has a commitment, they need to supply their valid nonce
+                const promptNonce = prompt("Enter your winning numeric nonce parameter:");
+                if (!promptNonce) return;
+                
+                actionBtn.innerText = "Verifying Proof...";
+                const tx = await contract.claimMiningReward(BigInt(promptNonce));
+                await tx.wait();
+                alert("Proof validated successfully! 50 MEDOR distributed to your address.");
+            }
+            await refreshDynamicState();
+        } catch (err) {
+            alert("Transaction execution rejected by chain validation rules.");
+            console.error(err);
+            await refreshDynamicState();
+        }
+    }
+
+    // Auto-login fallback if user has already granted permission previously
+    window.addEventListener('load', async () => {
+        if (window.ethereum) {
+            const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+            if (accounts.length > 0) {
+                initWeb3();
+            }
+        }
+    });
 </script>
+</body>
+</html>
