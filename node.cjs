@@ -97,6 +97,28 @@ app.use(cookieParser(process.env.COOKIE_SECRET));
 app.use(express.json({ limit: "5kb" }));
 app.use(cors({ origin: "https://medorcoin.org", credentials: true }));
 
+// THIS IS THE SIGNUP ROUTE CODE ADDED HERE:
+app.post('/api/signup', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+
+        if (!username || !password) {
+            return res.status(400).json({ success: false, error: "Username and password are required." });
+        }
+
+        const result = await authService.signup(username, password);
+
+        return res.json({ 
+            success: true, 
+            address: result.address, 
+            mnemonic: result.mnemonic 
+        });
+    } catch (e) {
+        return res.status(400).json({ success: false, error: e.message });
+    }
+});
+
+
 const signupLimiter = new RateLimiterRedis({
     storeClient: redis, points: 5, duration: 3600, keyPrefix: "signup_limit"
 });
