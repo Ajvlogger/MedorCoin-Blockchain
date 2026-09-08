@@ -3,9 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Embed Swap Interface</title>
-  <!-- Crucial: Imports the production Ethers.js library so your Web3 connections can compile -->
-  <script src="https://cloudflare.com"></script>
+  <title>Buy MedorCoin</title>
   <style>
     :root {
       --gold: #f3e5ab; 
@@ -119,7 +117,7 @@
   </div>
 
   <div class="rate-info">
-    <span>Contract Pool Pricing:</span>
+    <span>Create Pool:</span>
     <span id="rateDisplay" style="font-family: monospace;">Loading on-chain rate...</span>
   </div>
 
@@ -143,7 +141,7 @@
   ];
 
   let provider, signer, medorContract, wbtcContract;
-  let walletConnected = false;
+  let walletConnected = bool;
   let userAddress = "";
   let systemTokensPerWbtc = 0n;
 
