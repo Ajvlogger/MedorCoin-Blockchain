@@ -104,27 +104,57 @@
 </head>
 <body>
 
-<div class="swap-box">
-  <h1 class="swap-title">Buy MedorCoin</h1>
-  
-  <div class="input-group">
-    <label>Amount of Wrapped Bitcoin (WBTC) to Spend</label>
-    <input type="number" id="wbtcInput" step="0.00000001" placeholder="0.00000000" oninput="calculateOutput()">
-  </div>
+<!-- REPAIRED GRID FRAME: Guarantees the swap card renders on your page -->
+  <div class="grid" aria-label="Portal tiles">
+    
+    <!-- Explorer Blockchain tile -->
+    <a class="tile bg-teal" href="blockchain.html" style="min-height:96px;">
+      <div class="icon ic-slate" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#B5943F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="5" cy="6" r="2.4" fill="#F1E8C6" stroke="#B5943F"/>
+          <circle cx="19" cy="6" r="2.4" fill="#F1E8C6" stroke="#B5943F"/>
+          <circle cx="5" cy="18" r="2.4" fill="#F1E8C6" stroke="#B5943F"/>
+          <circle cx="19" cy="18" r="2.4" fill="#F1E8C6" stroke="#B5943F"/>
+          <path d="M7.2 6h9.6"/><path d="M5 8.6v6.8"/><path d="M19 8.6v6.8"/><path d="M6.6 16.8L10.8 12h-2.2l4.8-4.8M12.8 12l4.6 4.6"/>
+        </svg>
+      </div>
+      <b>Blockchain</b>
+      <span class="muted">On-chain tools & explorer</span>
+    </a>
 
-  <div class="input-group">
-    <label>Amount of MEDOR You Receive</label>
-    <input type="text" id="medorOutput" readonly placeholder="0.0000">
-  </div>
+    <!-- Rent/Buy API portal asset tile -->
+    <a class="tile" href="combined_api_portal.html" style="background:#87CEEB;color:#1f1f1f;min-height:96px;display:flex;flex-direction:column;gap:8px;justify-content:center;">
+      <div class="icon ic-slate" aria-hidden="true" style="font-size:20px;">🔗</div>
+      <b>Rent/Buy API</b>
+      <span class="muted" style="color:#1f1f1f;opacity:.8">API directory access</span>
+    </a>
 
-  <div class="rate-info">
-    <span>Contract Pool Pricing:</span>
-    <span id="rateDisplay" style="font-family: monospace;">Loading on-chain rate...</span>
-  </div>
+    <!-- Cloud Mining entry point asset tile -->
+    <a class="tile" href="miners.html" style="background:#FFD6A3;color:#333;min-height:96px;display:flex;flex-direction:column;gap:8px;justify-content:center;">
+      <div class="icon ic-slate" aria-hidden="true">⛏️</div>
+      <b>For Miners</b>
+      <span class="muted">Start mining node</span>
+    </a>
 
-  <button class="btn" id="actionButton" onclick="handleTradePipeline()">Connect Wallet</button>
-  <div id="feedbackText" class="feedback">Connect your Web3 extension wallet to unlock the transaction pool.</div>
-</div>
+    <!-- Documentations For Developers asset tile -->
+    <a class="tile" href="developers.html" style="background:#87CEEB;color:#333;min-height:96px;display:flex;flex-direction:column;gap:8px;justify-content:center;">
+      <div class="icon ic-slate" aria-hidden="true">👩‍💻</div>
+      <b>For Developers</b>
+      <span class="muted">Docs & core SDKs</span>
+    </a>
+
+    <!-- FIXED PLACEMENT: Forces the iframe to be 580px high so it can never be squashed or hidden -->
+    <div class="swap-embedded-card" style="grid-column: 1 / -1; width: 100%; display: flex; justify-content: center; margin: 25px 0; min-height: 580px;">
+      <iframe 
+        src="swap.html" 
+        style="width: 100%; max-width: 480px; height: 580px; border: 1px solid var(--border); border-radius: 24px; background: #121b2d; box-shadow: 0 10px 30px rgba(0,0,0,0.5);"
+        scrolling="no" 
+        loading="lazy" 
+        title="MedorCoin Smart Contract Core Swap Interface">
+      </iframe>
+    </div>
+
+  </div>
 
 <script>
   const MEDOR_ADDRESS = "0xd37A0F3F4E0E9F79b5eE2EC953EAD81112424b94";
