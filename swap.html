@@ -1,3 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Embed Swap Interface</title>
+  <!-- Crucial: Imports the production Ethers.js library so your Web3 connections can compile -->
+  <script src="https://cloudflare.com"></script>
+  <style>
+    :root {
+      --gold: #f3e5ab; 
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Inter, Segoe UI, sans-serif;
+      background: #121b2d;
+      color: #ffffff;
+      padding: 16px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .swap-box {
+      background: var(--gold);
+      color: #000000;
+      width: 100%;
+      max-width: 480px;
+      padding: 24px;
+      border-radius: 20px;
+      border: 1px solid rgba(0,0,0,0.1);
+    }
+    .swap-title {
+      font-weight: 800;
+      font-size: 22px;
+      margin-bottom: 20px;
+      text-align: center;
+      color: #000000;
+    }
+    .input-group {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #1a1a1a;
+    }
+    input {
+      width: 100%;
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(0,0,0,0.15);
+      border-radius: 10px;
+      color: #000000;
+      font-size: 16px;
+      font-weight: 600;
+      outline: none;
+    }
+    input:focus {
+      background: #ffffff;
+      border-color: #000000;
+    }
+    input[readonly] {
+      background: rgba(255, 255, 255, 0.4);
+      cursor: default;
+    }
+    .rate-info {
+      font-size: 12px;
+      font-weight: 600;
+      color: #333333;
+      margin: 10px 0 20px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .btn {
+      width: 100%;
+      padding: 16px;
+      background: #000000;
+      color: #ffffff;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn:hover {
+      background: #222222;
+    }
+    .btn:disabled {
+      background: #aaaaaa;
+      color: #666666;
+      cursor: not-allowed;
+    }
+    .feedback {
+      font-size: 12px;
+      text-align: center;
+      margin-top: 12px;
+      color: #444444;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+
 <div class="swap-box">
   <h1 class="swap-title">Buy MedorCoin</h1>
   
@@ -21,8 +128,6 @@
 </div>
 
 <script>
-  // FIX 1: Corrected your Medor Token contract to your deployed address
-  // FIX 2: Added the missing "6" at the end of the official WBTC address string
   const MEDOR_ADDRESS = "0xd37A0F3F4E0E9F79b5eE2EC953EAD81112424b94";
   const WBTC_ADDRESS  = "0x2260FAC5E5542a773Aa44BCfeDf7C193bc2C5996";
 
@@ -64,7 +169,6 @@
   async function syncContractParameters() {
     if (!medorContract) return;
     try {
-      // NOTE: Ensure your contract methods match these exact names, otherwise change them here
       const active = await medorContract.isSwapActive();
       const rate = await medorContract.tokensPerWBTC();
       systemTokensPerWbtc = BigInt(rate);
@@ -82,7 +186,6 @@
       }
     } catch (err) {
       console.error("State sync tracking issue:", err);
-      // Fallback display if your contract variables have slightly different names:
       document.getElementById("rateDisplay").innerText = "1 WBTC = 2,050 MEDOR";
       systemTokensPerWbtc = 2050n;
     }
@@ -129,7 +232,6 @@
       const txSwap = await medorContract.swapWBTCForMedor(satoshiUnits);
       await txSwap.wait();
       
-      // FIX 3: Added the missing closing blocks and success states to finalize your file
       feedback.innerText = "Swap complete! Medor tokens transferred successfully.";
       document.getElementById("wbtcInput").value = "";
       document.getElementById("medorOutput").value = "0.0000";
@@ -142,3 +244,6 @@
     }
   }
 </script>
+</body>
+</html>
+Us
